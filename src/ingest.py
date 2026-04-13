@@ -1,3 +1,4 @@
+import json
 import polars as pl
 from pathlib import Path
 
@@ -5,11 +6,11 @@ from pathlib import Path
 def load_documents(directory: Path) -> list[pl.DataFrame]:
     documents = []
 
-    for file in directory.glob("*.csv"):
-        header = pl.read_csv(file, has_header=False, n_rows=1)
+    for path in directory.glob("*.csv"):
+        header = pl.read_csv(path, has_header=False, n_rows=1)
         title = header[0, 1]
 
-        df = pl.read_csv(file, skip_lines=3)
+        df = pl.read_csv(path, skip_lines=3)
         df = df.with_columns(pl.lit(title).alias("title"))
         documents.append(df)
 
@@ -44,18 +45,29 @@ def chunk_documents(documents: pl.DataFrame) -> list[dict]:
     return chunks
 
 
+def save_chunks(chunks: list[dict], path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with path.open("w") as f:
+        for chunk in chunks:
+            f.write(json.dumps(chunk, ensure_ascii=False) + "\n")
+
+
 def main():
-    directory = Path("data/raw")
+    input_dir = Path("data/raw")
+    output_path = Path("data/processed/chunks.jsonl")
 
-    documents = load_documents(directory)
+    documents = load_documents(input_dir)
+    print(f"Loaded {len(documents)} documents")
+
     documents = normalise_documents(documents)
-    chunks = chunk_documents(documents)
+    print(f"Normalised documents into {documents.height} sections")
 
-    for chunk in chunks:
-        print(f"\nID: {chunk['chunk_id']}")
-        print(f"Title: {chunk['title']}")
-        print(f"Section: {chunk['section']}")
-        print(f"Text: {chunk['text']}")
+    chunks = chunk_documents(documents)
+    print(f"Created {len(chunks)} chunks")
+
+    save_chunks(chunks, output_path)
+    print(f"Saved chunks to {output_path}")
 
 
 if __name__ == "__main__":
