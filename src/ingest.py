@@ -35,13 +35,27 @@ def normalise_documents(documents: list[pl.DataFrame]) -> pl.DataFrame:
     return pl.concat(frames)
 
 
+def chunk_documents(documents: pl.DataFrame) -> list[dict]:
+    chunks = documents.to_dicts()
+
+    for i, chunk in enumerate(chunks):
+        chunk["chunk_id"] = i
+
+    return chunks
+
+
 def main():
     directory = Path("data/raw")
 
     documents = load_documents(directory)
     documents = normalise_documents(documents)
+    chunks = chunk_documents(documents)
 
-    print(documents.head())
+    for chunk in chunks:
+        print(f"\nID: {chunk['chunk_id']}")
+        print(f"Title: {chunk['title']}")
+        print(f"Section: {chunk['section']}")
+        print(f"Text: {chunk['text']}")
 
 
 if __name__ == "__main__":
