@@ -12,12 +12,32 @@ def load_documents(directory: Path) -> list[pl.DataFrame]:
     return documents
 
 
-def main():
-    directory = Path("data/raw")
-    documents = load_documents(directory)
+def normalise_documents(documents: list[pl.DataFrame]) -> pl.DataFrame:
+    frames = []
 
     for df in documents:
-        print(df.head())
+        frame = (
+            df.with_row_index("idx")
+            .drop("Fragment ID")
+            .rename({"Heading": "section", "Content": "text"})
+            .with_columns(pl.col(["section", "text"]).replace("", None))
+            .with_columns(pl.col("section").forward_fill())
+            .filter(pl.col("text").is_not_null())
+            .group_by("section")
+            .agg(pl.col("text").sort_by("idx").str.join(" "))
+        )
+        frames.append(frame)
+
+    return pl.concat(frames)
+
+
+def main():
+    directory = Path("data/raw")
+
+    documents = load_documents(directory)
+    documents = normalise_documents(documents)
+
+    print(documents.head())
 
 
 if __name__ == "__main__":
