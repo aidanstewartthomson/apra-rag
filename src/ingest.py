@@ -40,7 +40,10 @@ def chunk_documents(documents: pl.DataFrame) -> list[dict]:
     chunks = documents.to_dicts()
 
     for i, chunk in enumerate(chunks):
-        chunk["chunk_id"] = i
+        prefix, number = chunk["title"].split()[:2]
+        slug = f"{prefix.lower()}{number.lower()}"
+
+        chunk["id"] = f"{slug}_{i}"
 
     return chunks
 
