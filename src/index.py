@@ -1,4 +1,5 @@
 import json
+from config import CHUNKS_PATH
 from pathlib import Path
 
 
@@ -13,8 +14,7 @@ def load_chunks(path: Path) -> list[dict]:
 
 
 def main():
-    input_path = Path("data/processed/chunks.jsonl")
-    chunks = load_chunks(input_path)
+    chunks = load_chunks(CHUNKS_PATH)
 
     print(chunks[0])
 

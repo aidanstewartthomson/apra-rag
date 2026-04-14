@@ -1,5 +1,6 @@
 import json
 import polars as pl
+from config import CHUNKS_PATH, DOCUMENT_DIR
 from pathlib import Path
 
 
@@ -57,10 +58,7 @@ def save_chunks(chunks: list[dict], path: Path) -> None:
 
 
 def main():
-    input_dir = Path("data/raw")
-    output_path = Path("data/processed/chunks.jsonl")
-
-    documents = load_documents(input_dir)
+    documents = load_documents(DOCUMENT_DIR)
     print(f"Loaded {len(documents)} documents")
 
     documents = normalise_documents(documents)
@@ -69,8 +67,8 @@ def main():
     chunks = chunk_documents(documents)
     print(f"Created {len(chunks)} chunks")
 
-    save_chunks(chunks, output_path)
-    print(f"Saved chunks to {output_path}")
+    save_chunks(chunks, CHUNKS_PATH)
+    print(f"Saved chunks to {CHUNKS_PATH}")
 
 
 if __name__ == "__main__":
