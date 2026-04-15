@@ -11,3 +11,4 @@ CHUNKS_PATH = Path("data/processed/chunks.jsonl")
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 CHUNK_MAX_TOKENS = 400
+EMBEDDING_BATCH_SIZE = 200
