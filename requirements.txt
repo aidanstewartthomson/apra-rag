@@ -1,2 +1,4 @@
 chromadb
 polars
+pysbd
+tiktoken

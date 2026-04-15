@@ -1,6 +1,8 @@
 import json
 import polars as pl
-from config import CHUNKS_PATH, DOCUMENT_DIR
+import pysbd
+import tiktoken
+from config import CHUNK_MAX_TOKENS, CHUNKS_PATH, DOCUMENT_DIR, EMBEDDING_MODEL
 from pathlib import Path
 
 
@@ -29,6 +31,12 @@ def normalise_documents(documents: list[pl.DataFrame]) -> pl.DataFrame:
             .with_columns(pl.col(["section", "text"]).replace("", None))
             .with_columns(pl.col("section").forward_fill())
             .filter(pl.col("text").is_not_null())
+            .with_columns(
+                pl.col("text")
+                .str.replace_all("•", "")
+                .str.replace_all(r"\s+", " ")
+                .str.strip_chars()
+            )
             .group_by(["title", "section"])
             .agg(pl.col("text").sort_by("idx").str.join(" "))
         )
@@ -37,14 +45,53 @@ def normalise_documents(documents: list[pl.DataFrame]) -> pl.DataFrame:
     return pl.concat(frames)
 
 
-def chunk_documents(documents: pl.DataFrame) -> list[dict]:
-    chunks = documents.to_dicts()
+def chunk_sentences(
+    sentences: list[str], encoding: tiktoken.Encoding, max_tokens: int
+) -> list[str]:
+    chunks = []
+    current = []
+    current_tokens = 0
 
-    for i, chunk in enumerate(chunks):
-        prefix, number = chunk["title"].split()[:2]
+    for sentence in sentences:
+        tokens = len(encoding.encode(sentence))
+
+        if current_tokens + tokens <= max_tokens:
+            current.append(sentence)
+            current_tokens += tokens
+        else:
+            if current:
+                chunks.append(" ".join(current))
+
+            current = [sentence]
+            current_tokens = tokens
+
+    if current:
+        chunks.append(" ".join(current))
+
+    return chunks
+
+
+def chunk_documents(
+    documents: pl.DataFrame, max_tokens: int = CHUNK_MAX_TOKENS
+) -> list[dict]:
+    segmenter = pysbd.Segmenter(clean=True)
+    encoding = tiktoken.encoding_for_model(EMBEDDING_MODEL)
+
+    chunks = []
+
+    for row in documents.to_dicts():
+        sentences = segmenter.segment(row["text"])
+        text_chunks = chunk_sentences(sentences, encoding, max_tokens)
+
+        prefix, number = row["title"].split()[:2]
         slug = f"{prefix.lower()}{number.lower()}"
 
-        chunk["id"] = f"{slug}_{i}"
+        for i, text in enumerate(text_chunks):
+            chunk = dict(row)
+            chunk["text"] = text
+            chunk["id"] = f"{slug}_{i}"
+
+            chunks.append(chunk)
 
     return chunks
 
@@ -52,12 +99,12 @@ def chunk_documents(documents: pl.DataFrame) -> list[dict]:
 def save_chunks(chunks: list[dict], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    with path.open("w") as f:
+    with path.open("w", encoding="utf-8") as f:
         for chunk in chunks:
             f.write(json.dumps(chunk, ensure_ascii=False) + "\n")
 
 
-def main():
+def main() -> None:
     documents = load_documents(DOCUMENT_DIR)
     print(f"Loaded {len(documents)} documents")
 
