@@ -10,9 +10,11 @@ def load_documents(directory: Path) -> list[pl.DataFrame]:
     documents = []
 
     for path in directory.glob("*.csv"):
+        # source CSVs store the document title in the first row
         header = pl.read_csv(path, has_header=False, n_rows=1)
         title = header[0, 1]
 
+        # tabular content starts after 3 lines
         df = pl.read_csv(path, skip_lines=3)
         df = df.with_columns(pl.lit(title).alias("title"))
         documents.append(df)
@@ -78,19 +80,19 @@ def chunk_documents(
     encoding = tiktoken.encoding_for_model(EMBEDDING_MODEL)
 
     chunks = []
+    rows = documents.to_dicts()
 
-    for row in documents.to_dicts():
+    for row in rows:
         sentences = segmenter.segment(row["text"])
-        text_chunks = chunk_sentences(sentences, encoding, max_tokens)
+        chunk_texts = chunk_sentences(sentences, encoding, max_tokens)
 
-        prefix, number = row["title"].split()[:2]
-        slug = f"{prefix.lower()}{number.lower()}"
-
-        for i, text in enumerate(text_chunks):
-            chunk = dict(row)
-            chunk["text"] = text
-            chunk["id"] = f"{slug}_{i}"
-
+        for text in chunk_texts:
+            chunk = {
+                "id": str(len(chunks)),
+                "title": row["title"],
+                "section": row["section"],
+                "text": text,
+            }
             chunks.append(chunk)
 
     return chunks
