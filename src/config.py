@@ -8,7 +8,10 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 DOCUMENT_DIR = Path("data/raw")
 CHUNKS_PATH = Path("data/processed/chunks.jsonl")
+CHROMA_DIR = Path("data/chroma")
 
-EMBEDDING_MODEL = "text-embedding-3-small"
 CHUNK_MAX_TOKENS = 400
+
+COLLECTION_NAME = "chunks"
+EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_BATCH_SIZE = 200
