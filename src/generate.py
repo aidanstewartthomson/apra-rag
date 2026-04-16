@@ -22,7 +22,25 @@ def build_context(chunks: list[dict]) -> str:
     return context
 
 
-def main():
+def build_prompt(query: str, context: str) -> str:
+    prompt = (
+        "You are answering questions about APRA regulatory documents.\n\n"
+        "Answer the question using only the context provided.\n"
+        "Do not use prior knowledge or make assumptions.\n\n"
+        "If the context does not contain enough information, say:\n"
+        '"The context does not contain enough information to answer this question."\n\n'
+        "When possible, cite the relevant section and title.\n\n"
+        "Context:\n\n"
+        f"{context}\n\n"
+        "Question:\n"
+        f"{query}\n\n"
+        "Answer:"
+    )
+
+    return prompt
+
+
+def main() -> None:
     chroma_client = chromadb.PersistentClient(CHROMA_DIR)
     collection = chroma_client.get_collection(COLLECTION_NAME)
 
@@ -32,7 +50,9 @@ def main():
     chunks = retrieve_chunks(query, collection, openai_client)
 
     context = build_context(chunks)
-    print(context)
+    prompt = build_prompt(query, context)
+
+    print(prompt)
 
 
 if __name__ == "__main__":
