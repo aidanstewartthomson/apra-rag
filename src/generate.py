@@ -1,6 +1,6 @@
 import chromadb
 from openai import OpenAI
-from config import CHROMA_DIR, COLLECTION_NAME
+from config import CHROMA_DIR, COLLECTION_NAME, GENERATION_MODEL
 from retrieve import retrieve_chunks
 
 
@@ -40,19 +40,28 @@ def build_prompt(query: str, context: str) -> str:
     return prompt
 
 
+def generate_answer(prompt: str, client: OpenAI) -> str:
+    response = client.responses.create(input=prompt, model=GENERATION_MODEL)
+    return response.output_text
+
+
 def main() -> None:
     chroma_client = chromadb.PersistentClient(CHROMA_DIR)
     collection = chroma_client.get_collection(COLLECTION_NAME)
 
     openai_client = OpenAI()
 
-    query = "What are the rules around replacing board members?"
-    chunks = retrieve_chunks(query, collection, openai_client)
+    while True:
+        query = input("\nQuery: ")
+        chunks = retrieve_chunks(query, collection, openai_client)
 
-    context = build_context(chunks)
-    prompt = build_prompt(query, context)
+        context = build_context(chunks)
+        prompt = build_prompt(query, context)
 
-    print(prompt)
+        answer = generate_answer(prompt, openai_client)
+
+        print("\nAnswer:")
+        print(answer)
 
 
 if __name__ == "__main__":

@@ -17,3 +17,5 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_BATCH_SIZE = 200
 
 TOP_K = 5
+
+GENERATION_MODEL = "gpt-5.4-mini"
