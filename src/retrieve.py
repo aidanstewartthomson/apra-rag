@@ -32,24 +32,3 @@ def retrieve_chunks(
         chunks.append(chunk)
 
     return chunks
-
-
-def main() -> None:
-    openai_client = OpenAI()
-
-    chroma_client = chromadb.PersistentClient(CHROMA_DIR)
-    collection = chroma_client.get_collection(COLLECTION_NAME)
-
-    query = "What are the rules around replacing board members?"
-    chunks = retrieve_chunks(query, collection, openai_client)
-
-    for chunk in chunks:
-        print(f"\nID: {chunk['id']}")
-        print(f"Title: {chunk['title']}")
-        print(f"Section: {chunk['section']}")
-        print(f"Distance: {chunk['distance']}")
-        print(f"Text: {chunk['text']}")
-
-
-if __name__ == "__main__":
-    main()
