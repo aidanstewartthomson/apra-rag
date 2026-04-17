@@ -1,6 +1,6 @@
 import chromadb
 from openai import OpenAI
-from config import CHROMA_DIR, COLLECTION_NAME, GENERATION_MODEL
+from config import CHROMA_DIR, COLLECTION_NAME, GENERATION_MODEL, SYSTEM_INSTRUCTIONS
 from retrieve import retrieve_chunks
 
 
@@ -23,25 +23,16 @@ def build_context(chunks: list[dict]) -> str:
 
 
 def build_prompt(query: str, context: str) -> str:
-    prompt = (
-        "You are answering questions about APRA regulatory documents.\n\n"
-        "Answer the question using only the context provided.\n"
-        "Do not use prior knowledge or make assumptions.\n\n"
-        "If the context does not contain enough information, say:\n"
-        '"The context does not contain enough information to answer this question."\n\n'
-        "When possible, cite the relevant section and title.\n\n"
-        "Context:\n\n"
-        f"{context}\n\n"
-        "Question:\n"
-        f"{query}\n\n"
-        "Answer:"
-    )
-
+    prompt = "\n".join(["Context:", "", context, "", "Question:", query])
     return prompt
 
 
 def generate_answer(prompt: str, client: OpenAI) -> str:
-    response = client.responses.create(input=prompt, model=GENERATION_MODEL)
+    response = client.responses.create(
+        model=GENERATION_MODEL,
+        instructions=SYSTEM_INSTRUCTIONS,
+        input=prompt,
+    )
     return response.output_text
 
 
