@@ -1,6 +1,7 @@
 import json
 import polars as pl
 import pysbd
+import requests
 import tiktoken
 
 from config import (
@@ -24,18 +25,27 @@ def load_manifest(manifest_path: Path) -> list[dict]:
     return manifest
 
 
-def load_documents(directory: Path) -> list[pl.DataFrame]:
+def fetch_documents(manifest_path: Path) -> list[dict]:
+    rows = load_manifest(MANIFEST_PATH)
     documents = []
 
-    for path in directory.glob("*.csv"):
-        # source CSVs store the document title in the first row
-        header = pl.read_csv(path, has_header=False, n_rows=1)
-        title = header[0, 1]
+    for row in rows:
+        url = row.get("url")
+        response = requests.get(url)
 
-        # tabular content starts after 3 lines
-        df = pl.read_csv(path, skip_lines=3)
-        df = df.with_columns(pl.lit(title).alias("title"))
-        documents.append(df)
+        document = {
+            "url": url,
+            "title": row.get("title"),
+            "description": row.get("description"),
+            "doc_type": row.get("doc_type"),
+            "code": row.get("code"),
+            "industry": row.get("industry"),
+            "pillar": row.get("pillar"),
+            "sub_pillar": row.get("sub-pillar"),
+            "effective_date": row.get("effective_date"),
+            "html": response.text,
+        }
+        documents.append(document)
 
     return documents
 
@@ -125,11 +135,10 @@ def save_chunks(chunks: list[dict], path: Path) -> None:
 
 
 def main() -> None:
-    manifest = load_manifest(MANIFEST_PATH)
-    print(manifest[0])
+    documents = fetch_documents(MANIFEST_PATH)
+    print(f"Fetched {len(documents)} documents")
 
-    # documents = load_documents(DOCUMENT_DIR)
-    # print(f"Loaded {len(documents)} documents")
+    print(documents[0])
 
     # documents = normalise_documents(documents)
     # print(f"Normalised documents into {documents.height} sections")
