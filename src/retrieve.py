@@ -20,15 +20,14 @@ def retrieve_chunks(
     distances = results["distances"][0]
 
     chunks = []
-
     for id, document, metadata, distance in zip(ids, documents, metadatas, distances):
-        chunk = {
-            "id": id,
-            "title": metadata["title"],
-            "section": metadata["section"],
-            "text": document,
-            "distance": distance,
-        }
-        chunks.append(chunk)
+        chunks.append(
+            {
+                "id": id,
+                **metadata,
+                "text": document,
+                "distance": distance,
+            }
+        )
 
     return chunks

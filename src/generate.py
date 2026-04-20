@@ -11,9 +11,10 @@ def build_context(chunks: list[dict]) -> str:
         block = "\n".join(
             [
                 f"Source {i}",
-                f"Title: {chunk['title']}",
-                f"Section: {chunk['section']}",
-                f"Text: {chunk['text']}",
+                f"Title: {chunk.get("title")}",
+                f"Code {chunk.get("code")}",
+                f"Section {chunk.get("section")}",
+                f"Text {chunk.get("text")}",
             ]
         )
         blocks.append(block)
