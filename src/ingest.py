@@ -59,6 +59,16 @@ def save_documents(documents: list[dict], documents_path: Path) -> None:
             f.write(json.dumps(document) + "\n")
 
 
+def load_documents(documents_path: Path) -> list[dict]:
+    documents = []
+
+    with documents_path.open("r", encoding="utf-8") as f:
+        for line in f:
+            documents.append(json.loads(line))
+
+    return documents
+
+
 def normalise_documents(documents: list[pl.DataFrame]) -> pl.DataFrame:
     frames = []
 
@@ -144,11 +154,15 @@ def save_chunks(chunks: list[dict], path: Path) -> None:
 
 
 def main() -> None:
-    documents = fetch_documents(MANIFEST_PATH)
-    print(f"Fetched {len(documents)} documents")
+    if DOCUMENTS_PATH.exists():
+        documents = load_documents(DOCUMENTS_PATH)
+        print(documents[0])
+    else:
+        documents = fetch_documents(MANIFEST_PATH)
+        print(f"Fetched {len(documents)} documents")
 
-    save_documents(documents, DOCUMENTS_PATH)
-    print(f"Saved {len(documents)} to {DOCUMENTS_PATH}")
+        save_documents(documents, DOCUMENTS_PATH)
+        print(f"Saved {len(documents)} to {DOCUMENTS_PATH}")
 
     # documents = normalise_documents(documents)
     # print(f"Normalised documents into {documents.height} sections")
