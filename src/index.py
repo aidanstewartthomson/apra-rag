@@ -11,10 +11,10 @@ from openai import OpenAI
 from pathlib import Path
 
 
-def load_chunks(path: Path) -> list[dict]:
+def load_chunks(chunks_path: Path) -> list[dict]:
     chunks = []
 
-    with path.open("r", encoding="utf-8") as f:
+    with chunks_path.open("r", encoding="utf-8") as f:
         for line in f:
             chunks.append(json.loads(line))
 
@@ -41,8 +41,21 @@ def index_chunks(
 ) -> None:
     ids = [chunk["id"] for chunk in chunks]
     documents = [chunk["text"] for chunk in chunks]
+
+    metadata_schema = [
+        "url",
+        "title",
+        "description",
+        "industry",
+        "pillar",
+        "sub_pillar",
+        "code",
+        "effective_date",
+        "section",
+    ]
     metadatas = [
-        {"title": chunk["title"], "section": chunk["section"]} for chunk in chunks
+        {k: chunk[k] for k in metadata_schema if chunk.get(k) is not None}
+        for chunk in chunks
     ]
 
     collection.add(
