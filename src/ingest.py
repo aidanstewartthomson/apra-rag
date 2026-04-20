@@ -2,8 +2,26 @@ import json
 import polars as pl
 import pysbd
 import tiktoken
-from config import CHUNK_MAX_TOKENS, CHUNKS_PATH, DOCUMENT_DIR, EMBEDDING_MODEL
+
+from config import (
+    CHUNK_MAX_TOKENS,
+    CHUNKS_PATH,
+    MANIFEST_PATH,
+    EMBEDDING_MODEL,
+)
 from pathlib import Path
+
+
+def load_manifest(manifest_path: Path) -> list[dict]:
+    df = pl.read_csv(manifest_path).filter(
+        (pl.col("status") == "Current")
+        & pl.col("url").is_not_null()
+        # urls with "qa.handbook" aren't accessible without a login
+        & ~pl.col("url").str.contains("qa.handbook")
+    )
+
+    manifest = df.to_dicts()
+    return manifest
 
 
 def load_documents(directory: Path) -> list[pl.DataFrame]:
@@ -107,17 +125,20 @@ def save_chunks(chunks: list[dict], path: Path) -> None:
 
 
 def main() -> None:
-    documents = load_documents(DOCUMENT_DIR)
-    print(f"Loaded {len(documents)} documents")
+    manifest = load_manifest(MANIFEST_PATH)
+    print(manifest[0])
 
-    documents = normalise_documents(documents)
-    print(f"Normalised documents into {documents.height} sections")
+    # documents = load_documents(DOCUMENT_DIR)
+    # print(f"Loaded {len(documents)} documents")
 
-    chunks = chunk_documents(documents)
-    print(f"Created {len(chunks)} chunks")
+    # documents = normalise_documents(documents)
+    # print(f"Normalised documents into {documents.height} sections")
 
-    save_chunks(chunks, CHUNKS_PATH)
-    print(f"Saved chunks to {CHUNKS_PATH}")
+    # chunks = chunk_documents(documents)
+    # print(f"Created {len(chunks)} chunks")
+
+    # save_chunks(chunks, CHUNKS_PATH)
+    # print(f"Saved chunks to {CHUNKS_PATH}")
 
 
 if __name__ == "__main__":

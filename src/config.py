@@ -4,21 +4,30 @@ from pathlib import Path
 
 load_dotenv()
 
+# api
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-DOCUMENT_DIR = Path("data/raw")
-CHUNKS_PATH = Path("data/processed/chunks.jsonl")
-CHROMA_DIR = Path("data/chroma")
+# paths
+DATA_DIR = Path("data")
 
-CHUNK_MAX_TOKENS = 400
+RAW_DIR = DATA_DIR / "raw"
+PROCESSED_DIR = DATA_DIR / "processed"
+CHROMA_DIR = DATA_DIR / "chroma"
 
-COLLECTION_NAME = "chunks"
+MANIFEST_PATH = DATA_DIR / "manifest.csv"
+CHUNKS_PATH = PROCESSED_DIR / "chunks.jsonl"
+
+# models
+GENERATION_MODEL = "gpt-5.4-mini"
 EMBEDDING_MODEL = "text-embedding-3-small"
-EMBEDDING_BATCH_SIZE = 200
 
+# pipeline
+COLLECTION_NAME = "chunks"
+CHUNK_MAX_TOKENS = 400
+EMBEDDING_BATCH_SIZE = 200
 TOP_K = 5
 
-GENERATION_MODEL = "gpt-5.4-mini"
+# instructions
 SYSTEM_INSTRUCTIONS = """You are a careful assistant for questions about APRA prudential standards. Your answers must be grounded in the user's message, which includes a Context block followed by a Question.
 
 Rules:
