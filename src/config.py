@@ -15,6 +15,7 @@ PROCESSED_DIR = DATA_DIR / "processed"
 CHROMA_DIR = DATA_DIR / "chroma"
 
 MANIFEST_PATH = DATA_DIR / "manifest.csv"
+DOCUMENTS_PATH = RAW_DIR / "documents.jsonl"
 CHUNKS_PATH = PROCESSED_DIR / "chunks.jsonl"
 
 # models

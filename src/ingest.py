@@ -7,6 +7,7 @@ import tiktoken
 from config import (
     CHUNK_MAX_TOKENS,
     CHUNKS_PATH,
+    DOCUMENTS_PATH,
     MANIFEST_PATH,
     EMBEDDING_MODEL,
 )
@@ -21,8 +22,7 @@ def load_manifest(manifest_path: Path) -> list[dict]:
         & ~pl.col("url").str.contains("qa.handbook")
     )
 
-    manifest = df.to_dicts()
-    return manifest
+    return df.to_dicts()
 
 
 def fetch_documents(manifest_path: Path) -> list[dict]:
@@ -33,21 +33,30 @@ def fetch_documents(manifest_path: Path) -> list[dict]:
         url = row.get("url")
         response = requests.get(url)
 
-        document = {
-            "url": url,
-            "title": row.get("title"),
-            "description": row.get("description"),
-            "doc_type": row.get("doc_type"),
-            "code": row.get("code"),
-            "industry": row.get("industry"),
-            "pillar": row.get("pillar"),
-            "sub_pillar": row.get("sub-pillar"),
-            "effective_date": row.get("effective_date"),
-            "html": response.text,
-        }
-        documents.append(document)
+        documents.append(
+            {
+                "url": url,
+                "title": row.get("title"),
+                "description": row.get("description"),
+                "doc_type": row.get("doc_type"),
+                "code": row.get("code"),
+                "industry": row.get("industry"),
+                "pillar": row.get("pillar"),
+                "sub_pillar": row.get("sub-pillar"),
+                "effective_date": row.get("effective_date"),
+                "html": response.text,
+            }
+        )
 
     return documents
+
+
+def save_documents(documents: list[dict], documents_path: Path) -> None:
+    documents_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with documents_path.open("w", encoding="utf-8") as f:
+        for document in documents:
+            f.write(json.dumps(document) + "\n")
 
 
 def normalise_documents(documents: list[pl.DataFrame]) -> pl.DataFrame:
@@ -138,7 +147,8 @@ def main() -> None:
     documents = fetch_documents(MANIFEST_PATH)
     print(f"Fetched {len(documents)} documents")
 
-    print(documents[0])
+    save_documents(documents, DOCUMENTS_PATH)
+    print(f"Saved {len(documents)} to {DOCUMENTS_PATH}")
 
     # documents = normalise_documents(documents)
     # print(f"Normalised documents into {documents.height} sections")
