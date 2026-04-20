@@ -4,6 +4,7 @@ import pysbd
 import requests
 import tiktoken
 
+from bs4 import BeautifulSoup
 from config import (
     CHUNK_MAX_TOKENS,
     CHUNKS_PATH,
@@ -39,12 +40,13 @@ def fetch_documents(manifest_path: Path) -> list[dict]:
                 "title": row.get("title"),
                 "description": row.get("description"),
                 "doc_type": row.get("doc_type"),
-                "code": row.get("code"),
                 "industry": row.get("industry"),
                 "pillar": row.get("pillar"),
-                "sub_pillar": row.get("sub-pillar"),
+                "sub_pillar": row.get("sub_pillar"),
+                "code": row.get("code"),
                 "effective_date": row.get("effective_date"),
-                "html": response.text,
+                "section": None,
+                "text": response.text,
             }
         )
 
@@ -69,29 +71,54 @@ def load_documents(documents_path: Path) -> list[dict]:
     return documents
 
 
-def normalise_documents(documents: list[pl.DataFrame]) -> pl.DataFrame:
-    frames = []
+def normalise_documents(documents: list[dict]) -> list[dict]:
+    results = []
 
-    for df in documents:
-        frame = (
-            df.with_row_index("idx")
-            .drop("Fragment ID")
-            .rename({"Heading": "section", "Content": "text"})
-            .with_columns(pl.col(["section", "text"]).replace("", None))
-            .with_columns(pl.col("section").forward_fill())
-            .filter(pl.col("text").is_not_null())
-            .with_columns(
-                pl.col("text")
-                .str.replace_all("•", "")
-                .str.replace_all(r"\s+", " ")
-                .str.strip_chars()
+    for document in documents:
+        soup = BeautifulSoup(document["text"], "lxml")
+
+        # fragments are how APRA document web pages are structured
+        fragments = soup.find_all(class_="fragment")
+
+        current_section = None
+        section_text = []
+
+        for fragment in fragments:
+            h1 = fragment.find("h1")
+            if h1:
+                h1.extract()
+
+            header = fragment.find("h2")
+
+            if header:
+                if section_text:
+                    results.append(
+                        {
+                            **document,
+                            "section": current_section,
+                            "text": " ".join(section_text),
+                        }
+                    )
+
+                current_section = header.get_text(strip=True)
+                header.extract()
+                section_text = []
+
+            text = fragment.get_text(" ", strip=True)
+
+            if text:
+                section_text.append(text)
+
+        if section_text:
+            results.append(
+                {
+                    **document,
+                    "section": current_section,
+                    "text": " ".join(section_text),
+                }
             )
-            .group_by(["title", "section"])
-            .agg(pl.col("text").sort_by("idx").str.join(" "))
-        )
-        frames.append(frame)
 
-    return pl.concat(frames)
+    return results
 
 
 def chunk_sentences(
@@ -156,7 +183,6 @@ def save_chunks(chunks: list[dict], path: Path) -> None:
 def main() -> None:
     if DOCUMENTS_PATH.exists():
         documents = load_documents(DOCUMENTS_PATH)
-        print(documents[0])
     else:
         documents = fetch_documents(MANIFEST_PATH)
         print(f"Fetched {len(documents)} documents")
@@ -164,8 +190,11 @@ def main() -> None:
         save_documents(documents, DOCUMENTS_PATH)
         print(f"Saved {len(documents)} to {DOCUMENTS_PATH}")
 
-    # documents = normalise_documents(documents)
-    # print(f"Normalised documents into {documents.height} sections")
+    documents = normalise_documents(documents)
+    print(f"Normalised documents into {len(documents)} items")
+
+    for key, value in documents[0].items():
+        print(f"{key}: {value}")
 
     # chunks = chunk_documents(documents)
     # print(f"Created {len(chunks)} chunks")
