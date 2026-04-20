@@ -1,3 +1,4 @@
+import hashlib
 import json
 import polars as pl
 import pysbd
@@ -58,7 +59,7 @@ def save_documents(documents: list[dict], documents_path: Path) -> None:
 
     with documents_path.open("w", encoding="utf-8") as f:
         for document in documents:
-            f.write(json.dumps(document) + "\n")
+            f.write(json.dumps(document, ensure_ascii=False) + "\n")
 
 
 def load_documents(documents_path: Path) -> list[dict]:
@@ -148,34 +149,36 @@ def chunk_sentences(
 
 
 def chunk_documents(
-    documents: pl.DataFrame, max_tokens: int = CHUNK_MAX_TOKENS
+    documents: list[dict], max_tokens: int = CHUNK_MAX_TOKENS
 ) -> list[dict]:
     segmenter = pysbd.Segmenter(clean=True)
     encoding = tiktoken.encoding_for_model(EMBEDDING_MODEL)
 
     chunks = []
-    rows = documents.to_dicts()
 
-    for row in rows:
-        sentences = segmenter.segment(row["text"])
+    for document in documents:
+        sentences = segmenter.segment(document["text"])
         chunk_texts = chunk_sentences(sentences, encoding, max_tokens)
 
         for text in chunk_texts:
-            chunk = {
-                "id": str(len(chunks)),
-                "title": row["title"],
-                "section": row["section"],
-                "text": text,
-            }
-            chunks.append(chunk)
+            key = f"{document['url']}:{text}"
+            id = hashlib.sha256(key.encode("utf-8")).hexdigest()
+
+            chunks.append(
+                {
+                    "id": id,
+                    **document,
+                    "text": text,
+                }
+            )
 
     return chunks
 
 
-def save_chunks(chunks: list[dict], path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+def save_chunks(chunks: list[dict], chunks_path: Path) -> None:
+    chunks_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with path.open("w", encoding="utf-8") as f:
+    with chunks_path.open("w", encoding="utf-8") as f:
         for chunk in chunks:
             f.write(json.dumps(chunk, ensure_ascii=False) + "\n")
 
@@ -193,14 +196,11 @@ def main() -> None:
     documents = normalise_documents(documents)
     print(f"Normalised documents into {len(documents)} items")
 
-    for key, value in documents[0].items():
-        print(f"{key}: {value}")
+    chunks = chunk_documents(documents)
+    print(f"Created {len(chunks)} chunks")
 
-    # chunks = chunk_documents(documents)
-    # print(f"Created {len(chunks)} chunks")
-
-    # save_chunks(chunks, CHUNKS_PATH)
-    # print(f"Saved chunks to {CHUNKS_PATH}")
+    save_chunks(chunks, CHUNKS_PATH)
+    print(f"Saved chunks to {CHUNKS_PATH}")
 
 
 if __name__ == "__main__":
