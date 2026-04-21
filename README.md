@@ -1,8 +1,8 @@
-# RAG for APRA Prudential Standards
+# RAG for APRA Regulatory Documents
 
-Most RAG examples assume clean, well-structured text. APRA prudential standards are the opposite: long, repetitive, and structurally consistent but semantically dense.
+Most RAG examples assume clean, well-structured text. APRA regulatory documents are the opposite: long, repetitive, structurally consistent, and semantically dense.
 
-This project explores how RAG behaves on this kind of data.
+This project explores how RAG performs on this kind of data.
 
 ## Usage
 
@@ -25,13 +25,13 @@ OPENAI_API_KEY=your_api_key_here
 The pipeline is split into three stages:
 
 1. **`ingest.py`**  
-   Fetches APRA prudential standards from `manifest.csv`, extracts structured section text from HTML, and splits documents into token-bounded chunks, writing results to `data/raw/documents.jsonl` and `data/processed/chunks.jsonl`.
+   Fetches APRA regulatory documents from `manifest.csv`, extracts structured section text from HTML, and splits documents into token-bounded chunks, writing results to `data/raw/documents.jsonl` and `data/processed/chunks.jsonl`.
 
 2. **`index.py`**  
-   Generates embeddings for each chunk and stores them, along with metadata, in a persistent Chroma collection at `data/chroma`.
+   Generates embeddings for each chunk and stores them with associated metadata, in a persistent Chroma collection at `data/chroma`.
 
 3. **`generate.py`**  
-   Runs an interactive query loop. For each input, it embeds the query, retrieves the most relevant chunks via `retrieve.py`, builds a context block, and generates an answer grounded in the retrieved text.
+   Runs an interactive query loop. For each input, it embeds the query, retrieves relevant chunks via `retrieve.py`, constructs a context block, and generates an answer grounded in the retrieved text.
 
 Run the pipeline in order:
 ```bash
