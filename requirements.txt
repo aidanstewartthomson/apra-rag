@@ -4,4 +4,6 @@ lxml
 openai
 polars
 pysbd
+python-dotenv
+requests
 tiktoken
