@@ -1,10 +1,12 @@
 import hashlib
 import json
+import logging
+from pathlib import Path
+
 import polars as pl
 import pysbd
 import requests
 import tiktoken
-
 from bs4 import BeautifulSoup
 from config import (
     CHUNK_MAX_TOKENS,
@@ -13,10 +15,15 @@ from config import (
     MANIFEST_PATH,
     EMBEDDING_MODEL,
 )
-from pathlib import Path
+from rich.logging import RichHandler
+
+logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[RichHandler()])
+logger = logging.getLogger(__name__)
 
 
 def load_manifest(manifest_path: Path) -> list[dict]:
+    logger.info("Loading manifest from %s", manifest_path)
+
     df = pl.read_csv(manifest_path).filter(
         (pl.col("status") == "Current")
         & pl.col("url").is_not_null()
@@ -24,16 +31,27 @@ def load_manifest(manifest_path: Path) -> list[dict]:
         & ~pl.col("url").str.contains("qa.handbook")
     )
 
-    return df.to_dicts()
+    manifest = df.to_dicts()
+    logger.info("Loaded %d manifest entries after filtering", len(manifest))
+
+    return manifest
 
 
 def fetch_documents(manifest_path: Path) -> list[dict]:
-    rows = load_manifest(MANIFEST_PATH)
+    rows = load_manifest(manifest_path)
     documents = []
+
+    logger.info("Fetching %d documents", len(rows))
 
     for row in rows:
         url = row.get("url")
-        response = requests.get(url)
+
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+        except requests.RequestException:
+            logger.exception("Failed to fetch document from %s", url)
+            continue
 
         documents.append(
             {
@@ -51,28 +69,35 @@ def fetch_documents(manifest_path: Path) -> list[dict]:
             }
         )
 
+    logger.info("Fetched %d/%d documents successfully", len(documents), len(rows))
     return documents
 
 
 def save_documents(documents: list[dict], documents_path: Path) -> None:
+    logger.info("Saving %d documents to %s", len(documents), documents_path)
     documents_path.parent.mkdir(parents=True, exist_ok=True)
 
     with documents_path.open("w", encoding="utf-8") as f:
         for document in documents:
             f.write(json.dumps(document, ensure_ascii=False) + "\n")
 
+    logger.info("Saved %d documents to %s", len(documents), documents_path)
+
 
 def load_documents(documents_path: Path) -> list[dict]:
+    logger.info("Loading documents from %s", documents_path)
     documents = []
 
     with documents_path.open("r", encoding="utf-8") as f:
         for line in f:
             documents.append(json.loads(line))
 
+    logger.info("Loaded %d documents from %s", len(documents), documents_path)
     return documents
 
 
 def normalise_documents(documents: list[dict]) -> list[dict]:
+    logger.info("Normalising %d documents", len(documents))
     results = []
 
     for document in documents:
@@ -119,6 +144,9 @@ def normalise_documents(documents: list[dict]) -> list[dict]:
                 }
             )
 
+    logger.info(
+        "Normalised %d documents into %d sections", len(documents), len(results)
+    )
     return results
 
 
@@ -151,6 +179,8 @@ def chunk_sentences(
 def chunk_documents(
     documents: list[dict], max_tokens: int = CHUNK_MAX_TOKENS
 ) -> list[dict]:
+    logger.info("Chunking %d sections with max_tokens=%d", len(documents), max_tokens)
+
     segmenter = pysbd.Segmenter(clean=True)
     encoding = tiktoken.encoding_for_model(EMBEDDING_MODEL)
 
@@ -162,45 +192,47 @@ def chunk_documents(
 
         for text in chunk_texts:
             key = f"{document['url']}:{text}"
-            id = hashlib.sha256(key.encode("utf-8")).hexdigest()
+            chunk_id = hashlib.sha256(key.encode("utf-8")).hexdigest()
 
             chunks.append(
                 {
-                    "id": id,
+                    "id": chunk_id,
                     **document,
                     "text": text,
                 }
             )
 
+    logger.info("Chunked %d sections into %d chunks", len(documents), len(chunks))
     return chunks
 
 
 def save_chunks(chunks: list[dict], chunks_path: Path) -> None:
+    logger.info("Saving %d chunks to %s", len(chunks), chunks_path)
     chunks_path.parent.mkdir(parents=True, exist_ok=True)
 
     with chunks_path.open("w", encoding="utf-8") as f:
         for chunk in chunks:
             f.write(json.dumps(chunk, ensure_ascii=False) + "\n")
 
+    logger.info("Saved %d chunks to %s", len(chunks), chunks_path)
+
 
 def main() -> None:
+    logger.info("Starting ingestion pipeline")
+
     if DOCUMENTS_PATH.exists():
+        logger.info("Using existing documents from %s", DOCUMENTS_PATH)
         documents = load_documents(DOCUMENTS_PATH)
     else:
+        logger.info("No existing documents found")
         documents = fetch_documents(MANIFEST_PATH)
-        print(f"Fetched {len(documents)} documents")
-
         save_documents(documents, DOCUMENTS_PATH)
-        print(f"Saved {len(documents)} to {DOCUMENTS_PATH}")
 
     documents = normalise_documents(documents)
-    print(f"Normalised documents into {len(documents)} items")
-
     chunks = chunk_documents(documents)
-    print(f"Created {len(chunks)} chunks")
-
     save_chunks(chunks, CHUNKS_PATH)
-    print(f"Saved chunks to {CHUNKS_PATH}")
+
+    logger.info("Ingestion pipeline complete")
 
 
 if __name__ == "__main__":

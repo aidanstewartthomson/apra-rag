@@ -6,4 +6,5 @@ polars
 pysbd
 python-dotenv
 requests
+rich
 tiktoken
