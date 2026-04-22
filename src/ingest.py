@@ -182,7 +182,7 @@ def chunk_documents(
 
         for text in chunk_texts:
             key = f"{document['url']}:{text}"
-            chunk_id = hashlib.sha256(key.encode("utf-8")).hexdigest()
+            chunk_id = hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
 
             chunks.append(
                 {

@@ -1,24 +1,55 @@
+import logging
 import random
 
-from config import CHUNKS_PATH, EVAL_SAMPLE_SIZE, EVAL_SEED
+from openai import OpenAI
+
+from config import (
+    CHUNKS_PATH,
+    EVAL_INSTRUCTIONS,
+    EVAL_SAMPLE_SIZE,
+    EVAL_SEED,
+    GENERATION_MODEL,
+)
 from utils import load_jsonl
 
 
 def sample_chunks(
     chunks: list[dict], num_samples: int = EVAL_SAMPLE_SIZE, seed: int | None = None
 ) -> list[dict]:
-    rng = random.Random(seed) if seed else random
+    rng = random.Random(seed) if seed is not None else random
     samples = rng.sample(chunks, num_samples)
 
     return samples
+
+
+def generate_dataset(chunks: list[dict], client: OpenAI) -> list[dict]:
+    records = []
+    for chunk in chunks:
+        prompt = f"Chunk:\n{chunk['text']}"
+        response = client.responses.create(
+            model=GENERATION_MODEL, instructions=EVAL_INSTRUCTIONS, input=prompt
+        )
+
+        queries = [q.strip() for q in response.output_text.split("\n") if q.strip()]
+        for i, query in enumerate(queries, start=1):
+            records.append(
+                {"id": f"{chunk['id']}_q{i}", "query": query, "chunk_id": chunk["id"]}
+            )
+
+    return records
 
 
 def main() -> None:
     chunks = load_jsonl(CHUNKS_PATH)
     samples = sample_chunks(chunks, seed=EVAL_SEED)
 
-    for sample in samples[:5]:
-        print(f"\n{sample["text"]}")
+    client = OpenAI()
+    dataset = generate_dataset(samples[:5], client)
+
+    for record in dataset:
+        print(f"\nID: {record['id']}")
+        print(f"Query: {record['query']}")
+        print(f"Chunk ID: {record['chunk_id']}")
 
 
 if __name__ == "__main__":

@@ -63,3 +63,24 @@ Conditions:
 Limitations:
 - <include only if the source material is ambiguous, incomplete, or insufficient to fully support the answer>
 """
+
+EVAL_INSTRUCTIONS = """You are generating evaluation queries for a retrieval system.
+
+Your job is to create realistic user queries that can be answered using only the given chunk.
+
+Rules:
+- Generate exactly 3 queries.
+- Each query must be answerable using only the provided chunk.
+- Do not introduce information not in the chunk.
+- Do not copy phrases directly from the chunk.
+- Avoid section numbers, paragraph references, or exact headings unless necessary.
+- Keep queries concise, natural, and realistic.
+- Ensure diversity: one keyword-style, one paraphrased, and one mixed-style query.
+- Keyword-style queries should still read like a plausible search, not a list of terms.
+- Each query should focus on a single main question.
+
+Structure your response as:
+<query 1>
+<query 2>
+<query 3>
+"""

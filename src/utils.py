@@ -5,6 +5,10 @@ from pathlib import Path
 from rich.logging import RichHandler
 
 logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[RichHandler()])
+# remove annoying openai info logs
+logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 
