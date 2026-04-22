@@ -11,10 +11,12 @@ def build_context(chunks: list[dict]) -> str:
         block = "\n".join(
             [
                 f"Source {i}",
-                f"Title: {chunk.get("title")}",
-                f"Code {chunk.get("code")}",
-                f"Section {chunk.get("section")}",
-                f"Text {chunk.get("text")}",
+                f"Document: {chunk.get('code')}",
+                f"Type: {chunk.get('doc_type')}",
+                f"Industry: {chunk.get('industry')}",
+                f"Title: {chunk.get('title')}",
+                f"Section: {chunk.get('section')}",
+                f"Text: {chunk.get('text')}",
             ]
         )
         blocks.append(block)
@@ -24,7 +26,7 @@ def build_context(chunks: list[dict]) -> str:
 
 
 def build_prompt(query: str, context: str) -> str:
-    prompt = "\n".join(["Context:", "", context, "", "Question:", query])
+    prompt = "\n".join(["Question:", query, "", "Context:", "", context, "", "Answer:"])
     return prompt
 
 
@@ -52,8 +54,7 @@ def main() -> None:
 
         answer = generate_answer(prompt, openai_client)
 
-        print("\nAnswer:")
-        print(answer)
+        print(f"\n{answer}")
 
 
 if __name__ == "__main__":

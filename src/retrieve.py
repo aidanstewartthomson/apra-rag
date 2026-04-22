@@ -1,5 +1,5 @@
 import chromadb
-from config import CHROMA_DIR, COLLECTION_NAME, EMBEDDING_MODEL, TOP_K
+from config import EMBEDDING_MODEL, TOP_K
 from openai import OpenAI
 
 
