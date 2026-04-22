@@ -1,6 +1,9 @@
-import chromadb
-import json
 import logging
+
+import chromadb
+from openai import OpenAI
+from rich.logging import RichHandler
+
 from config import (
     CHROMA_DIR,
     CHUNKS_PATH,
@@ -8,27 +11,13 @@ from config import (
     EMBEDDING_BATCH_SIZE,
     EMBEDDING_MODEL,
 )
-from openai import OpenAI
-from pathlib import Path
-from rich.logging import RichHandler
+from utils import load_jsonl
 
 logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[RichHandler()])
 logging.getLogger("openai").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
-
-
-def load_chunks(chunks_path: Path) -> list[dict]:
-    logger.info("Loading chunks from %s", chunks_path)
-    chunks = []
-
-    with chunks_path.open("r", encoding="utf-8") as f:
-        for line in f:
-            chunks.append(json.loads(line))
-
-    logger.info("Loaded %d chunks from %s", len(chunks), chunks_path)
-    return chunks
 
 
 def embed_chunks(
@@ -83,7 +72,7 @@ def index_chunks(
 def main() -> None:
     logger.info("Starting indexing pipeline")
 
-    chunks = load_chunks(CHUNKS_PATH)
+    chunks = load_jsonl(CHUNKS_PATH)
 
     openai_client = OpenAI()
     embeddings = embed_chunks(chunks, openai_client)

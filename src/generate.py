@@ -1,5 +1,6 @@
 import chromadb
 from openai import OpenAI
+
 from config import CHROMA_DIR, COLLECTION_NAME, GENERATION_MODEL, SYSTEM_INSTRUCTIONS
 from retrieve import retrieve_chunks
 

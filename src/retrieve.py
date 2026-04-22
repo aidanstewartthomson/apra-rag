@@ -1,6 +1,7 @@
 import chromadb
-from config import EMBEDDING_MODEL, TOP_K
 from openai import OpenAI
+
+from config import EMBEDDING_MODEL, TOP_K
 
 
 def embed_query(query: str, client: OpenAI) -> list[float]:

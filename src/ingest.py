@@ -8,14 +8,16 @@ import pysbd
 import requests
 import tiktoken
 from bs4 import BeautifulSoup
+from rich.logging import RichHandler
+
 from config import (
     CHUNK_MAX_TOKENS,
     CHUNKS_PATH,
     DOCUMENTS_PATH,
-    MANIFEST_PATH,
     EMBEDDING_MODEL,
+    MANIFEST_PATH,
 )
-from rich.logging import RichHandler
+from utils import load_jsonl
 
 logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[RichHandler()])
 logger = logging.getLogger(__name__)
@@ -82,18 +84,6 @@ def save_documents(documents: list[dict], documents_path: Path) -> None:
             f.write(json.dumps(document, ensure_ascii=False) + "\n")
 
     logger.info("Saved %d documents to %s", len(documents), documents_path)
-
-
-def load_documents(documents_path: Path) -> list[dict]:
-    logger.info("Loading documents from %s", documents_path)
-    documents = []
-
-    with documents_path.open("r", encoding="utf-8") as f:
-        for line in f:
-            documents.append(json.loads(line))
-
-    logger.info("Loaded %d documents from %s", len(documents), documents_path)
-    return documents
 
 
 def normalise_documents(documents: list[dict]) -> list[dict]:
@@ -222,7 +212,7 @@ def main() -> None:
 
     if DOCUMENTS_PATH.exists():
         logger.info("Using existing documents from %s", DOCUMENTS_PATH)
-        documents = load_documents(DOCUMENTS_PATH)
+        documents = load_jsonl(DOCUMENTS_PATH)
     else:
         logger.info("No existing documents found")
         documents = fetch_documents(MANIFEST_PATH)
