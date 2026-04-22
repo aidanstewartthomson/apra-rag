@@ -1,4 +1,3 @@
-import logging
 import random
 
 from openai import OpenAI
@@ -9,8 +8,9 @@ from config import (
     EVAL_SAMPLE_SIZE,
     EVAL_SEED,
     GENERATION_MODEL,
+    QUERIES_PATH,
 )
-from utils import load_jsonl
+from utils import load_jsonl, save_jsonl
 
 
 def sample_chunks(
@@ -44,12 +44,9 @@ def main() -> None:
     samples = sample_chunks(chunks, seed=EVAL_SEED)
 
     client = OpenAI()
-    dataset = generate_dataset(samples[:5], client)
+    dataset = generate_dataset(samples, client)
 
-    for record in dataset:
-        print(f"\nID: {record['id']}")
-        print(f"Query: {record['query']}")
-        print(f"Chunk ID: {record['chunk_id']}")
+    save_jsonl(dataset, QUERIES_PATH)
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ from config import (
     EMBEDDING_MODEL,
     MANIFEST_PATH,
 )
-from utils import load_jsonl
+from utils import load_jsonl, save_jsonl
 
 logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[RichHandler()])
 logger = logging.getLogger(__name__)
@@ -73,17 +73,6 @@ def fetch_documents(manifest_path: Path) -> list[dict]:
 
     logger.info("Fetched %d/%d documents successfully", len(documents), len(rows))
     return documents
-
-
-def save_documents(documents: list[dict], documents_path: Path) -> None:
-    logger.info("Saving %d documents to %s", len(documents), documents_path)
-    documents_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with documents_path.open("w", encoding="utf-8") as f:
-        for document in documents:
-            f.write(json.dumps(document, ensure_ascii=False) + "\n")
-
-    logger.info("Saved %d documents to %s", len(documents), documents_path)
 
 
 def normalise_documents(documents: list[dict]) -> list[dict]:
@@ -196,17 +185,6 @@ def chunk_documents(
     return chunks
 
 
-def save_chunks(chunks: list[dict], chunks_path: Path) -> None:
-    logger.info("Saving %d chunks to %s", len(chunks), chunks_path)
-    chunks_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with chunks_path.open("w", encoding="utf-8") as f:
-        for chunk in chunks:
-            f.write(json.dumps(chunk, ensure_ascii=False) + "\n")
-
-    logger.info("Saved %d chunks to %s", len(chunks), chunks_path)
-
-
 def main() -> None:
     logger.info("Starting ingestion pipeline")
 
@@ -216,11 +194,11 @@ def main() -> None:
     else:
         logger.info("No existing documents found")
         documents = fetch_documents(MANIFEST_PATH)
-        save_documents(documents, DOCUMENTS_PATH)
+        save_jsonl(documents, DOCUMENTS_PATH)
 
     documents = normalise_documents(documents)
     chunks = chunk_documents(documents)
-    save_chunks(chunks, CHUNKS_PATH)
+    save_jsonl(chunks, CHUNKS_PATH)
 
     logger.info("Ingestion pipeline complete")
 

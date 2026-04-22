@@ -13,10 +13,12 @@ DATA_DIR = Path("data")
 RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
 CHROMA_DIR = DATA_DIR / "chroma"
+EVAL_DIR = DATA_DIR / "eval"
 
 MANIFEST_PATH = DATA_DIR / "manifest.csv"
 DOCUMENTS_PATH = RAW_DIR / "documents.jsonl"
 CHUNKS_PATH = PROCESSED_DIR / "chunks.jsonl"
+QUERIES_PATH = EVAL_DIR / "queries.jsonl"
 
 # models
 GENERATION_MODEL = "gpt-5.4-mini"
