@@ -22,11 +22,19 @@ CHUNKS_PATH = PROCESSED_DIR / "chunks.jsonl"
 GENERATION_MODEL = "gpt-5.4-mini"
 EMBEDDING_MODEL = "text-embedding-3-small"
 
-# pipeline
-COLLECTION_NAME = "chunks"
+# ingestion
 CHUNK_MAX_TOKENS = 400
+
+# indexing
+COLLECTION_NAME = "chunks"
 EMBEDDING_BATCH_SIZE = 200
+
+# retrieval
 TOP_K = 5
+
+# evaluation
+EVAL_SAMPLE_SIZE = 50
+EVAL_SEED = 42
 
 # instructions
 SYSTEM_INSTRUCTIONS = """You are a regulatory analysis assistant specialising in Australian Prudential Regulation Authority (APRA) regulatory documents.
