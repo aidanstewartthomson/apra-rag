@@ -25,7 +25,7 @@ GENERATION_MODEL = "gpt-5.4-mini"
 EMBEDDING_MODEL = "text-embedding-3-small"
 
 # ingestion
-CHUNK_MAX_TOKENS = 400
+CHUNK_MAX_TOKENS = 512
 
 # indexing
 COLLECTION_NAME = "apra_index"
@@ -33,7 +33,7 @@ EMBEDDING_BATCH_SIZE = 256
 INDEXING_BATCH_SIZE = 4096
 
 # retrieval
-TOP_K = 5
+TOP_K = 10
 
 # evaluation
 EVAL_SAMPLE_SIZE = 50

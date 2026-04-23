@@ -1,8 +1,16 @@
 # RAG for APRA Regulatory Documents
 
-Most RAG examples assume clean, well-structured text. APRA regulatory documents are the opposite: long, repetitive, structurally consistent, and semantically dense.
+This project builds and evaluates a RAG system for querying APRA regulatory documents, focusing on retrieval performance in long, structured financial text where relevant context is difficult to locate.
 
-This project explores how RAG performs on this kind of data.
+## Evaluation
+
+| Top K | Recall | MRR | Hits |
+|----|-------|-------|-----------|
+| 3  | 0.767 | 0.651 | 115 / 150 |
+| 5  | 0.833 | 0.666 | 125 / 150 |
+| 10 | 0.893 | 0.675 | 134 / 150 |
+
+*Evaluation over 150 synthetic queries generated from document chunks.*
 
 ## Usage
 
@@ -28,7 +36,7 @@ The pipeline is split into three stages:
    Fetches APRA regulatory documents from `manifest.csv`, extracts structured section text from HTML, and splits documents into token-bounded chunks, writing results to `data/raw/documents.jsonl` and `data/processed/chunks.jsonl`.
 
 2. **`index.py`**  
-   Generates embeddings for each chunk and stores them with associated metadata, in a persistent Chroma collection at `data/chroma`.
+   Generates embeddings for each chunk and stores them with associated metadata in a persistent Chroma collection at `data/chroma`.
 
 3. **`generate.py`**  
    Runs an interactive query loop. For each input, it embeds the query, retrieves relevant chunks via `retrieve.py`, constructs a context block, and generates an answer grounded in the retrieved text.

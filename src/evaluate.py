@@ -7,6 +7,7 @@ from rich.logging import RichHandler
 
 from config import (
     CHROMA_DIR,
+    CHUNK_MAX_TOKENS,
     CHUNKS_PATH,
     COLLECTION_NAME,
     EVAL_INSTRUCTIONS,
@@ -63,7 +64,12 @@ def evaluate_queries(
     client: OpenAI,
     n_results: int = TOP_K,
 ) -> dict:
-    logger.info("Evaluating %d queries", len(queries))
+    logger.info(
+        "Evaluating %d queries (max_tokens=%d, top_k=%d)",
+        len(queries),
+        CHUNK_MAX_TOKENS,
+        TOP_K,
+    )
 
     reciprocal_ranks = []
     hits = 0
@@ -86,7 +92,7 @@ def evaluate_queries(
 
     logger.info("Evaluated %d queries", len(queries))
     logger.info(
-        "Evaluation complete: recall=%.3f mrr=%.3f top_k=%d hits=%d/%d",
+        "Results: recall=%.3f mrr=%.3f top_k=%d hits=%d/%d",
         recall,
         mrr,
         n_results,
