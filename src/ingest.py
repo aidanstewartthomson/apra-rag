@@ -11,6 +11,7 @@ from rich.logging import RichHandler
 
 from config import (
     CHUNK_MAX_TOKENS,
+    CHUNK_MIN_TOKENS,
     CHUNKS_PATH,
     DOCUMENTS_PATH,
     EMBEDDING_MODEL,
@@ -155,9 +156,16 @@ def chunk_sentences(
 
 
 def chunk_documents(
-    documents: list[dict], max_tokens: int = CHUNK_MAX_TOKENS
+    documents: list[dict],
+    max_tokens: int = CHUNK_MAX_TOKENS,
+    min_tokens: int = CHUNK_MIN_TOKENS,
 ) -> list[dict]:
-    logger.info("Chunking %d sections with max_tokens=%d", len(documents), max_tokens)
+    logger.info(
+        "Chunking %d sections (max_tokens=%d, min_tokens=%d)",
+        len(documents),
+        max_tokens,
+        min_tokens,
+    )
 
     segmenter = pysbd.Segmenter(clean=True)
     encoding = tiktoken.encoding_for_model(EMBEDDING_MODEL)
@@ -169,6 +177,10 @@ def chunk_documents(
         chunk_texts = chunk_sentences(sentences, encoding, max_tokens)
 
         for j, text in enumerate(chunk_texts):
+            token_count = len(encoding.encode(text))
+            if token_count < min_tokens:
+                continue
+
             key = f"{document['url']}{i}{j}"
             chunk_id = hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
 

@@ -16,9 +16,9 @@ This project builds and evaluates a RAG system for querying APRA regulatory docu
 
 | Top K | Recall | MRR   | Hits      |
 |-------|--------|-------|-----------|
-| 3     | 0.767  | 0.651 | 115 / 150 |
-| 5     | 0.833  | 0.666 | 125 / 150 |
-| 10    | 0.893  | 0.675 | 134 / 150 |
+| 3     | 0.760  | 0.667 | 114 / 150 |
+| 5     | 0.833  | 0.684 | 125 / 150 |
+| 10    | 0.920  | 0.697 | 138 / 150 |
 
 *Evaluation over 150 synthetic queries generated from document chunks.*
 

@@ -7,7 +7,6 @@ from rich.logging import RichHandler
 
 from config import (
     CHROMA_DIR,
-    CHUNK_MAX_TOKENS,
     CHUNKS_PATH,
     COLLECTION_NAME,
     EVAL_INSTRUCTIONS,
@@ -37,7 +36,8 @@ def sample_chunks(
 
 
 def generate_queries(chunks: list[dict], client: OpenAI) -> list[dict]:
-    logger.info("Generating queries from %d chunks", len(chunks))
+    # three queries are generated per chunk
+    logger.info("Generating %d queries from %d chunks", len(chunks) * 3, len(chunks))
 
     records = []
     for chunk in chunks:
@@ -65,9 +65,8 @@ def evaluate_queries(
     n_results: int = TOP_K,
 ) -> dict:
     logger.info(
-        "Evaluating %d queries (max_tokens=%d, top_k=%d)",
+        "Evaluating %d queries (top_k=%d)",
         len(queries),
-        CHUNK_MAX_TOKENS,
         TOP_K,
     )
 

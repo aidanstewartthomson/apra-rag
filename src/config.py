@@ -26,6 +26,7 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 
 # ingestion
 CHUNK_MAX_TOKENS = 512
+CHUNK_MIN_TOKENS = 32
 
 # indexing
 COLLECTION_NAME = "apra_index"
