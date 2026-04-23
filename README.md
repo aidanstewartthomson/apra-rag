@@ -1,14 +1,24 @@
 # RAG for APRA Regulatory Documents
 
-This project builds and evaluates a RAG system for querying APRA regulatory documents, focusing on retrieval performance in long, structured financial text where relevant context is difficult to locate.
+This project builds and evaluates a RAG system for querying APRA regulatory documents, focusing on retrieval performance in long, structured financial text where relevant context is often difficult to locate.
+
+## Example
+
+**Query**
+> What capital requirements do banks have to meet under APRA?
+
+**Answer**
+> Banks must meet APRA’s minimum capital requirements for Common Equity Tier 1 (CET1), Tier 1 Capital, and Total Capital, with capital targets typically set above these minima to provide buffers that absorb losses under stress. APRA’s framework is designed to ensure capital is “unquestionably strong,” with higher requirements for some banks and simplified requirements for smaller, less complex institutions.
+
+*Answers include supporting source excerpts (“basis”), with conditions and limitations where relevant.*
 
 ## Evaluation
 
-| Top K | Recall | MRR | Hits |
-|----|-------|-------|-----------|
-| 3  | 0.767 | 0.651 | 115 / 150 |
-| 5  | 0.833 | 0.666 | 125 / 150 |
-| 10 | 0.893 | 0.675 | 134 / 150 |
+| Top K | Recall | MRR   | Hits      |
+|-------|--------|-------|-----------|
+| 3     | 0.767  | 0.651 | 115 / 150 |
+| 5     | 0.833  | 0.666 | 125 / 150 |
+| 10    | 0.893  | 0.675 | 134 / 150 |
 
 *Evaluation over 150 synthetic queries generated from document chunks.*
 
