@@ -74,14 +74,19 @@ def index_chunks(
 def main() -> None:
     logger.info("Starting indexing pipeline")
 
-    chunks = load_jsonl(CHUNKS_PATH)
-
+    chroma_client = chromadb.PersistentClient(CHROMA_DIR)
     openai_client = OpenAI()
+
+    chunks = load_jsonl(CHUNKS_PATH)
     embeddings = embed_chunks(chunks, openai_client)
 
-    chroma_client = chromadb.PersistentClient(CHROMA_DIR)
-    collection = chroma_client.get_or_create_collection(COLLECTION_NAME)
+    try:
+        chroma_client.delete_collection(COLLECTION_NAME)
+        logger.info("Deleted existing collection '%s'", COLLECTION_NAME)
+    except Exception:
+        logger.info("Collection '%s' did not already exist", COLLECTION_NAME)
 
+    collection = chroma_client.get_or_create_collection(COLLECTION_NAME)
     index_chunks(chunks, embeddings, collection)
 
     logger.info("Indexing pipeline complete")
