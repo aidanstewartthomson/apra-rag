@@ -10,6 +10,7 @@ from config import (
     COLLECTION_NAME,
     EMBEDDING_BATCH_SIZE,
     EMBEDDING_MODEL,
+    INDEXING_BATCH_SIZE,
 )
 from utils import load_jsonl
 
@@ -41,7 +42,10 @@ def embed_chunks(
 
 
 def index_chunks(
-    chunks: list[dict], embeddings: list[list[float]], collection: chromadb.Collection
+    chunks: list[dict],
+    embeddings: list[list[float]],
+    collection: chromadb.Collection,
+    batch_size: int = INDEXING_BATCH_SIZE,
 ) -> None:
     logger.info("Indexing %d chunks into collection '%s'", len(chunks), collection.name)
 
@@ -64,9 +68,13 @@ def index_chunks(
         for chunk in chunks
     ]
 
-    collection.add(
-        ids=ids, embeddings=embeddings, metadatas=metadatas, documents=documents
-    )
+    for i in range(0, len(chunks), batch_size):
+        collection.add(
+            ids=ids[i : i + batch_size],
+            embeddings=embeddings[i : i + batch_size],
+            metadatas=metadatas[i : i + batch_size],
+            documents=documents[i : i + batch_size],
+        )
 
     logger.info("Indexed %d chunks into collection '%s'", len(chunks), collection.name)
 

@@ -28,8 +28,9 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 CHUNK_MAX_TOKENS = 400
 
 # indexing
-COLLECTION_NAME = "chunks"
-EMBEDDING_BATCH_SIZE = 200
+COLLECTION_NAME = "apra_index"
+EMBEDDING_BATCH_SIZE = 256
+INDEXING_BATCH_SIZE = 4096
 
 # retrieval
 TOP_K = 5

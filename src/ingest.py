@@ -1,5 +1,4 @@
 import hashlib
-import json
 import logging
 from pathlib import Path
 
@@ -165,12 +164,12 @@ def chunk_documents(
 
     chunks = []
 
-    for document in documents:
+    for i, document in enumerate(documents):
         sentences = segmenter.segment(document["text"])
         chunk_texts = chunk_sentences(sentences, encoding, max_tokens)
 
-        for text in chunk_texts:
-            key = f"{document['url']}:{text}"
+        for j, text in enumerate(chunk_texts):
+            key = f"{document['url']}{i}{j}"
             chunk_id = hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
 
             chunks.append(
