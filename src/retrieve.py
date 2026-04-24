@@ -1,19 +1,10 @@
-import chromadb
-from openai import OpenAI
+from chromadb import Collection
 
-from config import EMBEDDING_MODEL, TOP_K
-
-
-def embed_query(query: str, client: OpenAI) -> list[float]:
-    response = client.embeddings.create(input=query, model=EMBEDDING_MODEL)
-    return response.data[0].embedding
+from config import TOP_K
 
 
-def retrieve_chunks(
-    query: str, collection: chromadb.Collection, client: OpenAI, n_results: int = TOP_K
-):
-    query_embedding = embed_query(query, client)
-    results = collection.query(query_embeddings=[query_embedding], n_results=n_results)
+def retrieve_chunks(query: str, collection: Collection, n_results: int = TOP_K):
+    results = collection.query(query_texts=[query], n_results=n_results)
 
     ids = results["ids"][0]
     documents = results["documents"][0]

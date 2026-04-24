@@ -2,7 +2,11 @@ import json
 import logging
 from pathlib import Path
 
+from chromadb import Collection, PersistentClient
+from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
 from rich.logging import RichHandler
+
+from config import CHROMA_DIR, COLLECTION_NAME, EMBEDDING_MODEL
 
 logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[RichHandler()])
 
@@ -34,3 +38,31 @@ def save_jsonl(records: list[dict], jsonl_path: Path) -> None:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     logger.info("Saved %d records to %s", len(records), jsonl_path)
+
+
+_client = None
+_collection = None
+
+
+def get_chroma_client() -> PersistentClient:
+    global _client
+
+    if _client is None:
+        _client = PersistentClient(CHROMA_DIR)
+
+    return _client
+
+
+def get_chroma_collection() -> Collection:
+    global _collection
+
+    if _collection is None:
+        client = get_chroma_client()
+        embedding_function = OpenAIEmbeddingFunction(model_name=EMBEDDING_MODEL)
+
+        _collection = client.get_or_create_collection(
+            COLLECTION_NAME,
+            embedding_function=embedding_function,
+        )
+
+    return _collection

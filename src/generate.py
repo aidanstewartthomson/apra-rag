@@ -1,8 +1,11 @@
-import chromadb
 from openai import OpenAI
 
-from config import CHROMA_DIR, COLLECTION_NAME, GENERATION_MODEL, SYSTEM_INSTRUCTIONS
+from config import (
+    GENERATION_MODEL,
+    SYSTEM_INSTRUCTIONS,
+)
 from retrieve import retrieve_chunks
+from utils import get_chroma_collection
 
 
 def build_context(chunks: list[dict]) -> str:
@@ -41,14 +44,12 @@ def generate_answer(prompt: str, client: OpenAI) -> str:
 
 
 def main() -> None:
-    chroma_client = chromadb.PersistentClient(CHROMA_DIR)
-    collection = chroma_client.get_collection(COLLECTION_NAME)
-
     openai_client = OpenAI()
+    collection = get_chroma_collection()
 
     while True:
         query = input("\nQuery: ")
-        chunks = retrieve_chunks(query, collection, openai_client)
+        chunks = retrieve_chunks(query, collection)
 
         context = build_context(chunks)
         prompt = build_prompt(query, context)
