@@ -1,4 +1,5 @@
 beautifulsoup4
+bm25s
 chromadb
 lxml
 openai

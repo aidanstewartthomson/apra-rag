@@ -13,6 +13,7 @@ DATA_DIR = Path("data")
 RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
 CHROMA_DIR = DATA_DIR / "chroma"
+BM25_DIR = DATA_DIR / "bm25"
 EVAL_DIR = DATA_DIR / "eval"
 
 MANIFEST_PATH = DATA_DIR / "manifest.csv"
@@ -29,7 +30,8 @@ CHUNK_MAX_TOKENS = 512
 CHUNK_MIN_TOKENS = 32
 
 # indexing
-COLLECTION_NAME = "apra_index"
+DENSE_INDEX_NAME = "dense_index"
+SPARSE_INDEX_NAME = "sparse_index"
 EMBEDDING_BATCH_SIZE = 256
 
 # retrieval

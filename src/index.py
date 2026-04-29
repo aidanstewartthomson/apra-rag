@@ -1,20 +1,28 @@
 import logging
 
+import bm25s
+from bm25s import BM25
 from chromadb import Collection
 from rich.logging import RichHandler
 
 from config import (
+    BM25_DIR,
     CHUNKS_PATH,
-    COLLECTION_NAME,
+    DENSE_INDEX_NAME,
     EMBEDDING_BATCH_SIZE,
+    SPARSE_INDEX_NAME,
 )
-from utils import get_chroma_client, get_chroma_collection, load_jsonl
+from utils import (
+    load_jsonl,
+    rebuild_chroma_collection,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[RichHandler()])
 
-# remove annoying openai info logs
+# silence noisy logs
 logging.getLogger("openai").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("bm25s").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
@@ -36,12 +44,14 @@ def extract_metadata(chunk: dict) -> dict:
     return metadata
 
 
-def index_chunks(
+def index_dense_chunks(
     chunks: list[dict],
     collection: Collection,
     batch_size: int = EMBEDDING_BATCH_SIZE,
 ) -> None:
-    logger.info("Indexing %d chunks into collection '%s'", len(chunks), collection.name)
+    logger.info(
+        "Indexing %d chunks into dense index '%s'", len(chunks), DENSE_INDEX_NAME
+    )
 
     ids = [chunk["id"] for chunk in chunks]
     documents = [chunk["text"] for chunk in chunks]
@@ -54,23 +64,46 @@ def index_chunks(
             documents=documents[i : i + batch_size],
         )
 
-    logger.info("Indexed %d chunks into collection '%s'", len(chunks), collection.name)
+    logger.info(
+        "Indexed %d chunks into dense index '%s'", len(chunks), DENSE_INDEX_NAME
+    )
+
+
+def index_sparse_chunks(chunks: list[dict]) -> None:
+    logger.info(
+        "Indexing %d chunks into sparse index '%s'",
+        len(chunks),
+        SPARSE_INDEX_NAME,
+    )
+
+    corpus = [
+        {"id": chunk["id"], "text": chunk["text"], "metadata": extract_metadata(chunk)}
+        for chunk in chunks
+    ]
+
+    documents = [chunk["text"] for chunk in chunks]
+    tokens = bm25s.tokenize(documents)
+
+    retriever = BM25()
+    retriever.index(tokens)
+
+    retriever.save(BM25_DIR / SPARSE_INDEX_NAME, corpus=corpus, show_progress=False)
+
+    logger.info(
+        "Indexed %d chunks into sparse index '%s'",
+        len(chunks),
+        SPARSE_INDEX_NAME,
+    )
 
 
 def main() -> None:
     logger.info("Starting indexing pipeline")
 
-    chroma_client = get_chroma_client()
     chunks = load_jsonl(CHUNKS_PATH)
+    collection = rebuild_chroma_collection()
 
-    try:
-        chroma_client.delete_collection(COLLECTION_NAME)
-        logger.info("Deleted existing collection '%s'", COLLECTION_NAME)
-    except Exception:
-        logger.info("Collection '%s' did not already exist", COLLECTION_NAME)
-
-    collection = get_chroma_collection()
-    index_chunks(chunks, collection)
+    index_dense_chunks(chunks, collection)
+    index_sparse_chunks(chunks)
 
     logger.info("Indexing pipeline complete")
 

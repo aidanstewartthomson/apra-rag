@@ -6,14 +6,13 @@ from chromadb import Collection, PersistentClient
 from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
 from rich.logging import RichHandler
 
-from config import CHROMA_DIR, COLLECTION_NAME, EMBEDDING_MODEL
+from config import (
+    CHROMA_DIR,
+    DENSE_INDEX_NAME,
+    EMBEDDING_MODEL,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[RichHandler()])
-
-# remove annoying openai info logs
-logging.getLogger("openai").setLevel(logging.WARNING)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-
 logger = logging.getLogger(__name__)
 
 
@@ -61,8 +60,22 @@ def get_chroma_collection() -> Collection:
         embedding_function = OpenAIEmbeddingFunction(model_name=EMBEDDING_MODEL)
 
         _collection = client.get_or_create_collection(
-            COLLECTION_NAME,
+            DENSE_INDEX_NAME,
             embedding_function=embedding_function,
         )
 
     return _collection
+
+
+def rebuild_chroma_collection() -> Collection:
+    global _collection
+
+    client = get_chroma_client()
+
+    try:
+        client.delete_collection(DENSE_INDEX_NAME)
+    except Exception:
+        pass
+
+    _collection = None
+    return get_chroma_collection()
