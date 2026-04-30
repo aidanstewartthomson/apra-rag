@@ -36,6 +36,7 @@ EMBEDDING_BATCH_SIZE = 256
 
 # retrieval
 TOP_K = 10
+RRF_K = 60
 
 # evaluation
 EVAL_SAMPLE_SIZE = 50
