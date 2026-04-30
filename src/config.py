@@ -35,6 +35,7 @@ SPARSE_INDEX_NAME = "sparse_index"
 EMBEDDING_BATCH_SIZE = 256
 
 # retrieval
+SEARCH_METHOD = "hybrid"
 TOP_K = 10
 RRF_K = 60
 

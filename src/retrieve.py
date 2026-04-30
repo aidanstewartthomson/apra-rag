@@ -4,8 +4,7 @@ import bm25s
 from bm25s import BM25
 from chromadb import Collection
 
-from config import BM25_DIR, RRF_K, SPARSE_INDEX_NAME, TOP_K
-from utils import get_chroma_collection
+from config import RRF_K, TOP_K
 
 # silence noisy logs
 logging.getLogger("openai").setLevel(logging.WARNING)
@@ -72,17 +71,3 @@ def hybrid_search(
     ]
 
     return results
-
-
-def main() -> None:
-    retriever = BM25.load(BM25_DIR / SPARSE_INDEX_NAME, load_corpus=True)
-    collection = get_chroma_collection()
-
-    query = "What capital requirements do banks have to meet under APRA?"
-
-    results = hybrid_search(query, retriever, collection)
-    print(results)
-
-
-if __name__ == "__main__":
-    main()
