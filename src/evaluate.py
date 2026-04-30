@@ -1,23 +1,25 @@
 import logging
 import random
+from typing import Callable
 
-import chromadb
+from bm25s import BM25
 from openai import OpenAI
 from rich.logging import RichHandler
 
 from config import (
-    CHROMA_DIR,
+    BM25_DIR,
     CHUNKS_PATH,
-    COLLECTION_NAME,
     EVAL_INSTRUCTIONS,
     EVAL_SAMPLE_SIZE,
     EVAL_SEED,
     GENERATION_MODEL,
     QUERIES_PATH,
+    SEARCH_METHOD,
+    SPARSE_INDEX_NAME,
     TOP_K,
 )
-from retrieve import retrieve_chunks
-from utils import load_jsonl, save_jsonl
+from retrieve import hybrid_search, keyword_search, semantic_search
+from utils import get_chroma_collection, load_jsonl, save_jsonl
 
 logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[RichHandler()])
 logger = logging.getLogger(__name__)
@@ -60,21 +62,22 @@ def generate_queries(chunks: list[dict], client: OpenAI) -> list[dict]:
 
 def evaluate_queries(
     queries: list[dict],
-    collection: chromadb.Collection,
-    client: OpenAI,
+    search_function: Callable,
+    search_method: str,
     n_results: int = TOP_K,
 ) -> dict:
     logger.info(
-        "Evaluating %d queries (top_k=%d)",
+        "Evaluating %d queries (search_method=%s, top_k=%d)",
         len(queries),
-        TOP_K,
+        search_method,
+        n_results,
     )
 
     reciprocal_ranks = []
     hits = 0
 
     for query in queries:
-        chunks = retrieve_chunks(query["text"], collection, client, n_results=n_results)
+        chunks = search_function(query["text"], n_results)
 
         reciprocal_rank = 0
         for rank, chunk in enumerate(chunks, start=1):
@@ -109,10 +112,10 @@ def evaluate_queries(
 
 
 def main() -> None:
-    chroma_client = chromadb.PersistentClient(CHROMA_DIR)
-    collection = chroma_client.get_collection(COLLECTION_NAME)
-
     openai_client = OpenAI()
+
+    retriever = BM25.load(BM25_DIR / SPARSE_INDEX_NAME, load_corpus=True)
+    collection = get_chroma_collection()
 
     if QUERIES_PATH.exists():
         logger.info("Using existing queries from %s", QUERIES_PATH)
@@ -125,7 +128,18 @@ def main() -> None:
 
         save_jsonl(queries, QUERIES_PATH)
 
-    evaluate_queries(queries, collection, openai_client)
+    match SEARCH_METHOD:
+        case "keyword":
+            search_method = "keyword"
+            search_fn = lambda q, k: keyword_search(q, retriever, k)
+        case "semantic":
+            search_method = "semantic"
+            search_fn = lambda q, k: semantic_search(q, collection, k)
+        case "hybrid":
+            search_method = "hybrid"
+            search_fn = lambda q, k: hybrid_search(q, retriever, collection, k)
+
+    evaluate_queries(queries, search_fn, search_method)
 
     logger.info("Evaluation pipeline complete")
 
