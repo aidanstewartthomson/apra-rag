@@ -54,12 +54,10 @@ This project builds and evaluates a RAG system for querying APRA regulatory docu
 
 ### Setup
 
-Create a virtual environment (recommended) and install dependencies:
+Install the project dependencies with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+uv sync
 ```
 
 Create a `.env` file in the project root with your OpenAI API key:
@@ -84,9 +82,9 @@ The pipeline is split into three stages:
 Run the pipeline in order:
 
 ```bash
-python src/ingest.py
-python src/index.py
-python src/generate.py
+uv run python src/ingest.py
+uv run python src/index.py
+uv run python src/generate.py
 ```
 
 ### Configuration

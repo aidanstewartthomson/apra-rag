@@ -1,0 +1,19 @@
+[project]
+name = "apra-rag"
+version = "0.1.0"
+description = "A RAG system for querying APRA regulatory documents"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "beautifulsoup4",
+    "bm25s",
+    "chromadb",
+    "lxml",
+    "openai",
+    "polars",
+    "pysbd",
+    "python-dotenv",
+    "requests",
+    "rich",
+    "tiktoken",
+]
