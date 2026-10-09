@@ -10,10 +10,33 @@ dependencies = [
     "chromadb",
     "lxml",
     "openai",
-    "polars",
     "pysbd",
     "python-dotenv",
     "requests",
     "rich",
     "tiktoken",
+]
+
+[project.scripts]
+ingest = "ingest:main"
+index = "index:main"
+generate = "generate:main"
+evaluate = "evaluate:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools]
+py-modules = [
+    "config",
+    "ingest",
+    "index",
+    "generate",
+    "retrieve",
+    "evaluate",
+    "utils",
 ]

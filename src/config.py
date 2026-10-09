@@ -16,7 +16,7 @@ CHROMA_DIR = DATA_DIR / "chroma"
 BM25_DIR = DATA_DIR / "bm25"
 EVAL_DIR = DATA_DIR / "eval"
 
-MANIFEST_PATH = DATA_DIR / "manifest.csv"
+SITEMAP_URL = "https://handbook.apra.gov.au/sitemap.xml"
 DOCUMENTS_PATH = RAW_DIR / "documents.jsonl"
 CHUNKS_PATH = PROCESSED_DIR / "chunks.jsonl"
 QUERIES_PATH = EVAL_DIR / "queries.jsonl"

@@ -71,7 +71,7 @@ OPENAI_API_KEY=your_api_key_here
 The pipeline is split into three stages:
 
 1. **`ingest.py`**
-  Fetches APRA regulatory documents from `manifest.csv`, extracts structured section text from HTML, and splits documents into token-bounded chunks, writing results to `data/raw/documents.jsonl` and `data/processed/chunks.jsonl`.
+  Discovers APRA regulatory documents from the Handbook sitemap, fetches each page, extracts structured section text from HTML, and splits documents into token-bounded chunks, writing results to `data/raw/documents.jsonl` and `data/processed/chunks.jsonl`.
 
 2. **`index.py`**  
   Generates embeddings for each chunk and stores them with associated metadata in a persistent Chroma collection at `data/chroma`.
@@ -79,12 +79,18 @@ The pipeline is split into three stages:
 3. **`generate.py`** 
   Runs an interactive query loop. For each input, it embeds the query, retrieves relevant chunks via `retrieve.py`, constructs a context block, and generates an answer grounded in the retrieved text.
 
-Run the pipeline in order:
+Run the pipeline in order (from the project root):
 
 ```bash
-uv run python src/ingest.py
-uv run python src/index.py
-uv run python src/generate.py
+uv run ingest
+uv run index
+uv run generate
+```
+
+Evaluation:
+
+```bash
+uv run evaluate
 ```
 
 ### Configuration

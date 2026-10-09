@@ -1,8 +1,9 @@
 import hashlib
 import logging
-from pathlib import Path
+import re
+from urllib.parse import urlparse
+from xml.etree import ElementTree
 
-import polars as pl
 import pysbd
 import requests
 import tiktoken
@@ -15,58 +16,105 @@ from config import (
     CHUNKS_PATH,
     DOCUMENTS_PATH,
     EMBEDDING_MODEL,
-    MANIFEST_PATH,
+    SITEMAP_URL,
 )
 from utils import load_jsonl, save_jsonl
 
 logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[RichHandler()])
 logger = logging.getLogger(__name__)
 
+SITEMAP_NS = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 
-def load_manifest(manifest_path: Path) -> list[dict]:
-    logger.info("Loading manifest from %s", manifest_path)
+DOC_TYPE_BY_PREFIX = {
+    "standard": "Prudential standard",
+    "ppg": "Prudential practice guide",
+    "letter": "Letter",
+    "faq": "Frequently asked questions",
+    "information-paper": "Information paper",
+}
 
-    df = pl.read_csv(manifest_path).filter(
-        (pl.col("status") == "Current")
-        & pl.col("url").is_not_null()
-        # urls with "qa.handbook" aren't accessible without a login
-        & ~pl.col("url").str.contains("qa.handbook")
-    )
-
-    manifest = df.to_dicts()
-    logger.info("Loaded %d manifest entries after filtering", len(manifest))
-
-    return manifest
+# e.g. SPS 160, CPS 230, 3PS 001, CPG 229
+CODE_RE = re.compile(r"\b([123]?[A-Z]{2,3})\s+(\d{3}[A-Z]?)\b")
 
 
-def fetch_documents(manifest_path: Path) -> list[dict]:
-    rows = load_manifest(manifest_path)
+def load_sitemap(sitemap_url: str = SITEMAP_URL) -> list[dict]:
+    logger.info("Loading sitemap from %s", sitemap_url)
+
+    response = requests.get(sitemap_url)
+    response.raise_for_status()
+
+    root = ElementTree.fromstring(response.content)
+    entries = []
+
+    for loc in root.findall("sm:url/sm:loc", SITEMAP_NS):
+        url = (loc.text or "").strip()
+        if not url:
+            continue
+
+        prefix = urlparse(url).path.strip("/").split("/", 1)[0]
+        doc_type = DOC_TYPE_BY_PREFIX.get(prefix)
+        if not doc_type:
+            continue
+
+        entries.append({"url": url, "doc_type": doc_type})
+
+    logger.info("Loaded %d document URLs from sitemap", len(entries))
+    return entries
+
+
+def extract_title(html: str) -> str | None:
+    soup = BeautifulSoup(html, "lxml")
+    h1 = soup.find("h1")
+    if h1:
+        title = h1.get_text(" ", strip=True)
+        if title:
+            return title
+
+    if soup.title and soup.title.string:
+        return soup.title.string.split("|", 1)[0].strip()
+
+    return None
+
+
+def extract_code(title: str | None) -> str | None:
+    if not title:
+        return None
+
+    match = CODE_RE.search(title)
+    if not match:
+        return None
+
+    return f"{match.group(1)} {match.group(2)}"
+
+
+def fetch_documents(sitemap_url: str = SITEMAP_URL) -> list[dict]:
+    rows = load_sitemap(sitemap_url)
     documents = []
 
     logger.info("Fetching %d documents", len(rows))
 
     for row in rows:
-        url = row.get("url")
+        url = row["url"]
 
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=30)
             response.raise_for_status()
+        except requests.HTTPError as exc:
+            status = exc.response.status_code if exc.response is not None else "?"
+            logger.warning("Skipping %s (HTTP %s)", url, status)
+            continue
         except requests.RequestException:
             logger.exception("Failed to fetch document from %s", url)
             continue
 
+        title = extract_title(response.text)
+
         documents.append(
             {
                 "url": url,
-                "title": row.get("title"),
-                "description": row.get("description"),
-                "doc_type": row.get("doc_type"),
-                "industry": row.get("industry"),
-                "pillar": row.get("pillar"),
-                "sub_pillar": row.get("sub_pillar"),
-                "code": row.get("code"),
-                "effective_date": row.get("effective_date"),
-                "section": None,
+                "title": title,
+                "code": extract_code(title),
+                "doc_type": row["doc_type"],
                 "text": response.text,
             }
         )
@@ -204,7 +252,7 @@ def main() -> None:
         documents = load_jsonl(DOCUMENTS_PATH)
     else:
         logger.info("No existing documents found")
-        documents = fetch_documents(MANIFEST_PATH)
+        documents = fetch_documents()
         save_jsonl(documents, DOCUMENTS_PATH)
 
     documents = normalise_documents(documents)

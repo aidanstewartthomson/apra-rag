@@ -21,7 +21,6 @@ def build_context(chunks: list[dict]) -> str:
                 f"Source {i}",
                 f"Document: {chunk.get('code')}",
                 f"Type: {chunk.get('doc_type')}",
-                f"Industry: {chunk.get('industry')}",
                 f"Title: {chunk.get('title')}",
                 f"Section: {chunk.get('section')}",
                 f"Text: {chunk.get('text')}",

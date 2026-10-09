@@ -31,12 +31,8 @@ def extract_metadata(chunk: dict) -> dict:
     metadata_schema = [
         "url",
         "title",
-        "description",
-        "industry",
-        "pillar",
-        "sub_pillar",
         "code",
-        "effective_date",
+        "doc_type",
         "section",
     ]
     metadata = {k: chunk[k] for k in metadata_schema if chunk.get(k) is not None}
