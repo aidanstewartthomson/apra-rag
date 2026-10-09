@@ -9,7 +9,7 @@ from config import (
     SYSTEM_INSTRUCTIONS,
 )
 from retrieve import hybrid_search, keyword_search, semantic_search
-from utils import get_chroma_collection
+from utils import configure_logging, get_chroma_collection
 
 
 def build_context(chunks: list[dict]) -> str:
@@ -47,6 +47,7 @@ def generate_answer(prompt: str, client: OpenAI) -> str:
 
 
 def main() -> None:
+    configure_logging()
     openai_client = OpenAI()
 
     retriever = BM25.load(BM25_DIR / SPARSE_INDEX_NAME, load_corpus=True)

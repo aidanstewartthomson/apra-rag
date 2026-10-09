@@ -20,6 +20,7 @@ dependencies = [
 ingest = "ingest:main"
 index = "index:main"
 generate = "generate:main"
+make-queries = "make_queries:main"
 evaluate = "evaluate:main"
 
 [build-system]
@@ -35,6 +36,7 @@ py-modules = [
     "ingest",
     "index",
     "generate",
+    "make_queries",
     "retrieve",
     "evaluate",
     "utils",

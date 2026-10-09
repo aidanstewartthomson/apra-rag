@@ -1,78 +1,31 @@
+import argparse
 import logging
-import random
+import sys
 from typing import Callable
 
 from bm25s import BM25
-from openai import OpenAI
-from rich.logging import RichHandler
 
 from config import (
     BM25_DIR,
-    CHUNKS_PATH,
-    EVAL_INSTRUCTIONS,
-    EVAL_SAMPLE_SIZE,
-    EVAL_SEED,
-    GENERATION_MODEL,
     QUERIES_PATH,
     SEARCH_METHOD,
     SPARSE_INDEX_NAME,
     TOP_K,
 )
 from retrieve import hybrid_search, keyword_search, semantic_search
-from utils import get_chroma_collection, load_jsonl, save_jsonl
+from utils import configure_logging, get_chroma_collection, load_jsonl
 
-logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[RichHandler()])
 logger = logging.getLogger(__name__)
-
-
-def sample_chunks(
-    chunks: list[dict], n_results: int = EVAL_SAMPLE_SIZE, seed: int | None = None
-) -> list[dict]:
-    logger.info("Sampling %d chunks from %d total chunks", n_results, len(chunks))
-
-    rng = random.Random(seed) if seed is not None else random
-    samples = rng.sample(chunks, n_results)
-
-    logger.info("Sampled %d chunks from %d total chunks", n_results, len(chunks))
-    return samples
-
-
-def generate_queries(chunks: list[dict], client: OpenAI) -> list[dict]:
-    # three queries are generated per chunk
-    logger.info("Generating %d queries from %d chunks", len(chunks) * 3, len(chunks))
-
-    records = []
-    total = len(chunks)
-
-    for i, chunk in enumerate(chunks, start=1):
-        prompt = f"Chunk:\n{chunk['text']}"
-        response = client.responses.create(
-            model=GENERATION_MODEL, instructions=EVAL_INSTRUCTIONS, input=prompt
-        )
-
-        queries = [q.strip() for q in response.output_text.split("\n") if q.strip()]
-
-        # ensure only three queries per chunk
-        for j, query in enumerate(queries[:3], start=1):
-            records.append(
-                {"id": f"{chunk['id']}_q{j}", "text": query, "chunk_id": chunk["id"]}
-            )
-
-        if i % 10 == 0 or i == total:
-            logger.info("Generated queries for %d/%d chunks", i, total)
-
-    logger.info("Generated %d queries from %d chunks", len(records), len(chunks))
-    return records
 
 
 def evaluate_queries(
     queries: list[dict],
     search_function: Callable,
     search_method: str,
-    n_results: int = TOP_K,
+    n_results: int,
 ) -> dict:
     logger.info(
-        "Evaluating %d queries (search_method=%s, top_k=%d)",
+        "Evaluating %d queries (method=%s, top_k=%d)",
         len(queries),
         search_method,
         n_results,
@@ -100,14 +53,7 @@ def evaluate_queries(
     recall = hits / total
     mrr = sum(reciprocal_ranks) / total
 
-    logger.info(
-        "Results: recall=%.3f mrr=%.3f top_k=%d hits=%d/%d",
-        recall,
-        mrr,
-        n_results,
-        hits,
-        total,
-    )
+    logger.info("recall=%.3f mrr=%.3f hits=%d/%d", recall, mrr, hits, total)
 
     return {
         "recall": recall,
@@ -118,37 +64,55 @@ def evaluate_queries(
     }
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Evaluate retrieval on a fixed query set"
+    )
+    parser.add_argument(
+        "--method",
+        choices=["keyword", "semantic", "hybrid"],
+        default=SEARCH_METHOD,
+        help=f"retrieval method (default: {SEARCH_METHOD})",
+    )
+    parser.add_argument(
+        "--top-k",
+        type=int,
+        default=TOP_K,
+        help=f"number of results to retrieve (default: {TOP_K})",
+    )
+
+    return parser.parse_args()
+
+
 def main() -> None:
-    openai_client = OpenAI()
+    configure_logging()
+    args = parse_args()
+
+    if args.top_k < 1:
+        logger.error("--top-k must be >= 1")
+        sys.exit(1)
+
+    if not QUERIES_PATH.exists():
+        logger.error(
+            "No query set at %s. Create one with: uv run --env-file .env make-queries",
+            QUERIES_PATH,
+        )
+        sys.exit(1)
+
+    queries = load_jsonl(QUERIES_PATH)
 
     retriever = BM25.load(BM25_DIR / SPARSE_INDEX_NAME, load_corpus=True)
     collection = get_chroma_collection()
 
-    if QUERIES_PATH.exists():
-        logger.info("Using existing queries from %s", QUERIES_PATH)
-        queries = load_jsonl(QUERIES_PATH)
-    else:
-        logger.info("No existing queries found")
-        chunks = load_jsonl(CHUNKS_PATH)
-        samples = sample_chunks(chunks, seed=EVAL_SEED)
-        queries = generate_queries(samples, openai_client)
-
-        save_jsonl(queries, QUERIES_PATH)
-
-    match SEARCH_METHOD:
+    match args.method:
         case "keyword":
-            search_method = "keyword"
             search_fn = lambda q, k: keyword_search(q, retriever, k)
         case "semantic":
-            search_method = "semantic"
             search_fn = lambda q, k: semantic_search(q, collection, k)
         case "hybrid":
-            search_method = "hybrid"
             search_fn = lambda q, k: hybrid_search(q, retriever, collection, k)
 
-    evaluate_queries(queries, search_fn, search_method)
-
-    logger.info("Evaluation pipeline complete")
+    evaluate_queries(queries, search_fn, args.method, args.top_k)
 
 
 if __name__ == "__main__":

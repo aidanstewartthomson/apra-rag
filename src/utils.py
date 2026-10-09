@@ -12,12 +12,21 @@ from config import (
     EMBEDDING_MODEL,
 )
 
-logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[RichHandler()])
 logger = logging.getLogger(__name__)
 
 
+def configure_logging() -> None:
+    root = logging.getLogger()
+    if root.handlers:
+        return
+
+    logging.basicConfig(
+        level=logging.INFO, format="%(message)s", handlers=[RichHandler()]
+    )
+    logging.getLogger("bm25s").setLevel(logging.WARNING)
+
+
 def load_jsonl(jsonl_path: Path) -> list[dict]:
-    logger.info("Loading records from %s", jsonl_path)
     records = []
 
     with jsonl_path.open("r", encoding="utf-8") as f:
@@ -29,7 +38,6 @@ def load_jsonl(jsonl_path: Path) -> list[dict]:
 
 
 def save_jsonl(records: list[dict], jsonl_path: Path) -> None:
-    logger.info("Saving %d records to %s", len(records), jsonl_path)
     jsonl_path.parent.mkdir(parents=True, exist_ok=True)
 
     with jsonl_path.open("w", encoding="utf-8") as f:

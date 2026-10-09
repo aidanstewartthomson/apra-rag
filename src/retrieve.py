@@ -8,8 +8,8 @@ from config import RRF_K, TOP_K
 
 
 def keyword_search(query: str, retriever: BM25, n_results: int = TOP_K) -> list[dict]:
-    tokens = bm25s.tokenize(query)
-    results, scores = retriever.retrieve(tokens, k=n_results)
+    tokens = bm25s.tokenize(query, show_progress=False)
+    results, scores = retriever.retrieve(tokens, k=n_results, show_progress=False)
 
     # results are batched but we only have one query
     return [

@@ -16,16 +16,16 @@ This project builds and evaluates a RAG system for querying APRA regulatory docu
 
 ## Evaluation
 
-**Summary:** Hybrid search performs best across all metrics and values of top-k, achieving higher recall and stronger ranking quality (MRR) than both keyword and semantic search.
+**Summary:** Hybrid search has the strongest ranking quality (MRR) at every top-k, and the best recall at top-k 5 and 10. Keyword search is competitive on recall at low top-k. Semantic search trails both.
 
 ### Keyword search
 
 
 | Top-k | Recall | MRR   | Hits      |
 | ----- | ------ | ----- | --------- |
-| 3     | 0.787  | 0.694 | 118 / 150 |
-| 5     | 0.847  | 0.709 | 127 / 150 |
-| 10    | 0.893  | 0.715 | 134 / 150 |
+| 3     | 0.760  | 0.590 | 114 / 150 |
+| 5     | 0.840  | 0.608 | 126 / 150 |
+| 10    | 0.893  | 0.612 | 134 / 150 |
 
 
 ### Semantic search
@@ -33,9 +33,9 @@ This project builds and evaluates a RAG system for querying APRA regulatory docu
 
 | Top-k | Recall | MRR   | Hits      |
 | ----- | ------ | ----- | --------- |
-| 3     | 0.773  | 0.671 | 116 / 150 |
-| 5     | 0.847  | 0.688 | 127 / 150 |
-| 10    | 0.927  | 0.699 | 139 / 150 |
+| 3     | 0.687  | 0.552 | 103 / 150 |
+| 5     | 0.740  | 0.564 | 111 / 150 |
+| 10    | 0.840  | 0.578 | 126 / 150 |
 
 
 ### Hybrid search
@@ -43,9 +43,9 @@ This project builds and evaluates a RAG system for querying APRA regulatory docu
 
 | Top-k | Recall | MRR   | Hits      |
 | ----- | ------ | ----- | --------- |
-| 3     | 0.860  | 0.720 | 129 / 150 |
-| 5     | 0.920  | 0.735 | 138 / 150 |
-| 10    | 0.953  | 0.743 | 143 / 150 |
+| 3     | 0.747  | 0.619 | 112 / 150 |
+| 5     | 0.847  | 0.634 | 127 / 150 |
+| 10    | 0.927  | 0.638 | 139 / 150 |
 
 
 *Evaluated on 150 synthetic queries generated from document chunks.*
@@ -87,10 +87,19 @@ uv run --env-file .env index
 uv run --env-file .env generate
 ```
 
-Evaluation:
+Evaluation uses a fixed query set at `data/eval/queries.jsonl` so scores stay comparable across runs:
 
 ```bash
 uv run --env-file .env evaluate
+uv run --env-file .env evaluate --method hybrid --top-k 5
+```
+
+Defaults come from `config.py` (`SEARCH_METHOD`, `TOP_K`).
+
+To intentionally rebuild that benchmark (invalidates prior scores):
+
+```bash
+uv run --env-file .env make-queries
 ```
 
 To avoid repeating the flag, export `UV_ENV_FILE=.env` in your shell.

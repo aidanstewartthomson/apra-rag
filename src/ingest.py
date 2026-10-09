@@ -8,8 +8,6 @@ import pysbd
 import requests
 import tiktoken
 from bs4 import BeautifulSoup
-from rich.logging import RichHandler
-
 from config import (
     CHUNK_MAX_TOKENS,
     CHUNK_MIN_TOKENS,
@@ -18,9 +16,8 @@ from config import (
     EMBEDDING_MODEL,
     SITEMAP_URL,
 )
-from utils import load_jsonl, save_jsonl
+from utils import configure_logging, load_jsonl, save_jsonl
 
-logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[RichHandler()])
 logger = logging.getLogger(__name__)
 
 SITEMAP_NS = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -38,8 +35,6 @@ CODE_RE = re.compile(r"\b([123]?[A-Z]{2,3})\s+(\d{3}[A-Z]?)\b")
 
 
 def load_sitemap(sitemap_url: str = SITEMAP_URL) -> list[dict]:
-    logger.info("Loading sitemap from %s", sitemap_url)
-
     response = requests.get(sitemap_url)
     response.raise_for_status()
 
@@ -121,9 +116,9 @@ def fetch_documents(sitemap_url: str = SITEMAP_URL) -> list[dict]:
         )
 
         if i % 25 == 0 or i == total:
-            logger.info("Fetched %d/%d documents", i, total)
+            logger.info("Fetched %d/%d URLs", i, total)
 
-    logger.info("Fetched %d/%d documents successfully", len(documents), total)
+    logger.info("Fetched %d/%d documents", len(documents), total)
     return documents
 
 
@@ -175,9 +170,7 @@ def normalise_documents(documents: list[dict]) -> list[dict]:
                 }
             )
 
-    logger.info(
-        "Normalised %d documents into %d sections", len(documents), len(results)
-    )
+    logger.info("Normalised %d documents into %d sections", len(documents), len(results))
     return results
 
 
@@ -249,18 +242,16 @@ def chunk_documents(
         if done % 250 == 0 or done == total:
             logger.info("Chunked %d/%d sections (%d chunks)", done, total, len(chunks))
 
-    logger.info("Chunked %d sections into %d chunks", len(documents), len(chunks))
     return chunks
 
 
 def main() -> None:
+    configure_logging()
     logger.info("Starting ingestion pipeline")
 
     if DOCUMENTS_PATH.exists():
-        logger.info("Using existing documents from %s", DOCUMENTS_PATH)
         documents = load_jsonl(DOCUMENTS_PATH)
     else:
-        logger.info("No existing documents found")
         documents = fetch_documents()
         save_jsonl(documents, DOCUMENTS_PATH)
 
