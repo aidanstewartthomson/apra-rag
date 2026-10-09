@@ -18,10 +18,6 @@ from utils import (
 )
 
 logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[RichHandler()])
-
-# silence noisy logs
-logging.getLogger("openai").setLevel(logging.WARNING)
-logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("bm25s").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
@@ -53,12 +49,15 @@ def index_dense_chunks(
     documents = [chunk["text"] for chunk in chunks]
     metadatas = [extract_metadata(chunk) for chunk in chunks]
 
-    for i in range(0, len(chunks), batch_size):
+    total = len(chunks)
+    for i in range(0, total, batch_size):
         collection.add(
             ids=ids[i : i + batch_size],
             metadatas=metadatas[i : i + batch_size],
             documents=documents[i : i + batch_size],
         )
+        done = min(i + batch_size, total)
+        logger.info("Indexed %d/%d chunks into dense index", done, total)
 
     logger.info(
         "Indexed %d chunks into dense index '%s'", len(chunks), DENSE_INDEX_NAME

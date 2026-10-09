@@ -90,10 +90,11 @@ def extract_code(title: str | None) -> str | None:
 def fetch_documents(sitemap_url: str = SITEMAP_URL) -> list[dict]:
     rows = load_sitemap(sitemap_url)
     documents = []
+    total = len(rows)
 
-    logger.info("Fetching %d documents", len(rows))
+    logger.info("Fetching %d documents", total)
 
-    for row in rows:
+    for i, row in enumerate(rows, start=1):
         url = row["url"]
 
         try:
@@ -119,7 +120,10 @@ def fetch_documents(sitemap_url: str = SITEMAP_URL) -> list[dict]:
             }
         )
 
-    logger.info("Fetched %d/%d documents successfully", len(documents), len(rows))
+        if i % 25 == 0 or i == total:
+            logger.info("Fetched %d/%d documents", i, total)
+
+    logger.info("Fetched %d/%d documents successfully", len(documents), total)
     return documents
 
 
@@ -219,6 +223,7 @@ def chunk_documents(
     encoding = tiktoken.encoding_for_model(EMBEDDING_MODEL)
 
     chunks = []
+    total = len(documents)
 
     for i, document in enumerate(documents):
         sentences = segmenter.segment(document["text"])
@@ -239,6 +244,10 @@ def chunk_documents(
                     "text": text,
                 }
             )
+
+        done = i + 1
+        if done % 250 == 0 or done == total:
+            logger.info("Chunked %d/%d sections (%d chunks)", done, total, len(chunks))
 
     logger.info("Chunked %d sections into %d chunks", len(documents), len(chunks))
     return chunks

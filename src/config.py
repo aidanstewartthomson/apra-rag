@@ -1,11 +1,21 @@
+import logging
 import os
-from dotenv import load_dotenv
 from pathlib import Path
-
-load_dotenv()
 
 # api
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# silence noisy third-party request logs
+for _logger in (
+    "openai",
+    "httpx",
+    "httpx2",
+    "httpcore",
+    "httpcore2",
+    "urllib3",
+    "chromadb",
+):
+    logging.getLogger(_logger).setLevel(logging.WARNING)
 
 # paths
 DATA_DIR = Path("data")

@@ -79,19 +79,21 @@ The pipeline is split into three stages:
 3. **`generate.py`** 
   Runs an interactive query loop. For each input, it embeds the query, retrieves relevant chunks via `retrieve.py`, constructs a context block, and generates an answer grounded in the retrieved text.
 
-Run the pipeline in order (from the project root):
+Run the pipeline in order (from the project root). Pass `--env-file .env` so uv injects your API key:
 
 ```bash
-uv run ingest
-uv run index
-uv run generate
+uv run --env-file .env ingest
+uv run --env-file .env index
+uv run --env-file .env generate
 ```
 
 Evaluation:
 
 ```bash
-uv run evaluate
+uv run --env-file .env evaluate
 ```
+
+To avoid repeating the flag, export `UV_ENV_FILE=.env` in your shell.
 
 ### Configuration
 

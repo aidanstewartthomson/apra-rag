@@ -42,7 +42,9 @@ def generate_queries(chunks: list[dict], client: OpenAI) -> list[dict]:
     logger.info("Generating %d queries from %d chunks", len(chunks) * 3, len(chunks))
 
     records = []
-    for chunk in chunks:
+    total = len(chunks)
+
+    for i, chunk in enumerate(chunks, start=1):
         prompt = f"Chunk:\n{chunk['text']}"
         response = client.responses.create(
             model=GENERATION_MODEL, instructions=EVAL_INSTRUCTIONS, input=prompt
@@ -51,10 +53,13 @@ def generate_queries(chunks: list[dict], client: OpenAI) -> list[dict]:
         queries = [q.strip() for q in response.output_text.split("\n") if q.strip()]
 
         # ensure only three queries per chunk
-        for i, query in enumerate(queries[:3], start=1):
+        for j, query in enumerate(queries[:3], start=1):
             records.append(
-                {"id": f"{chunk['id']}_q{i}", "text": query, "chunk_id": chunk["id"]}
+                {"id": f"{chunk['id']}_q{j}", "text": query, "chunk_id": chunk["id"]}
             )
+
+        if i % 10 == 0 or i == total:
+            logger.info("Generated queries for %d/%d chunks", i, total)
 
     logger.info("Generated %d queries from %d chunks", len(records), len(chunks))
     return records
@@ -75,8 +80,9 @@ def evaluate_queries(
 
     reciprocal_ranks = []
     hits = 0
+    total = len(queries)
 
-    for query in queries:
+    for i, query in enumerate(queries, start=1):
         chunks = search_function(query["text"], n_results)
 
         reciprocal_rank = 0
@@ -88,11 +94,12 @@ def evaluate_queries(
 
         reciprocal_ranks.append(reciprocal_rank)
 
-    total = len(queries)
+        if i % 25 == 0 or i == total:
+            logger.info("Evaluated %d/%d queries", i, total)
+
     recall = hits / total
     mrr = sum(reciprocal_ranks) / total
 
-    logger.info("Evaluated %d queries", len(queries))
     logger.info(
         "Results: recall=%.3f mrr=%.3f top_k=%d hits=%d/%d",
         recall,

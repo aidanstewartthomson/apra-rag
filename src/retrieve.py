@@ -6,10 +6,6 @@ from chromadb import Collection
 
 from config import RRF_K, TOP_K
 
-# silence noisy logs
-logging.getLogger("openai").setLevel(logging.WARNING)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-
 
 def keyword_search(query: str, retriever: BM25, n_results: int = TOP_K) -> list[dict]:
     tokens = bm25s.tokenize(query)
