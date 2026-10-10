@@ -8,12 +8,11 @@ dependencies = [
     "beautifulsoup4",
     "bm25s",
     "chromadb",
+    "langchain-text-splitters>=1.1.3",
     "lxml",
     "openai",
-    "pysbd",
     "requests",
     "rich",
-    "tiktoken",
 ]
 
 [project.scripts]

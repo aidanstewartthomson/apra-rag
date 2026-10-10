@@ -16,16 +16,16 @@ This project builds and evaluates a RAG system for querying APRA regulatory docu
 
 ## Evaluation
 
-**Summary:** Hybrid search has the strongest ranking quality (MRR) at every top-k, and the best recall at top-k 5 and 10. Keyword search is competitive on recall at low top-k. Semantic search trails both.
+**Summary:** Hybrid search leads on both recall and MRR at every top-k. Keyword is next on recall; semantic is close to keyword on MRR but trails on recall at higher top-k.
 
 ### Keyword search
 
 
 | Top-k | Recall | MRR   | Hits      |
 | ----- | ------ | ----- | --------- |
-| 3     | 0.760  | 0.590 | 114 / 150 |
-| 5     | 0.840  | 0.608 | 126 / 150 |
-| 10    | 0.893  | 0.612 | 134 / 150 |
+| 3     | 0.753  | 0.614 | 113 / 150 |
+| 5     | 0.807  | 0.636 | 121 / 150 |
+| 10    | 0.880  | 0.656 | 132 / 150 |
 
 
 ### Semantic search
@@ -33,9 +33,9 @@ This project builds and evaluates a RAG system for querying APRA regulatory docu
 
 | Top-k | Recall | MRR   | Hits      |
 | ----- | ------ | ----- | --------- |
-| 3     | 0.687  | 0.552 | 103 / 150 |
-| 5     | 0.740  | 0.564 | 111 / 150 |
-| 10    | 0.840  | 0.578 | 126 / 150 |
+| 3     | 0.733  | 0.618 | 110 / 150 |
+| 5     | 0.780  | 0.628 | 117 / 150 |
+| 10    | 0.820  | 0.634 | 123 / 150 |
 
 
 ### Hybrid search
@@ -43,9 +43,9 @@ This project builds and evaluates a RAG system for querying APRA regulatory docu
 
 | Top-k | Recall | MRR   | Hits      |
 | ----- | ------ | ----- | --------- |
-| 3     | 0.747  | 0.619 | 112 / 150 |
-| 5     | 0.847  | 0.634 | 127 / 150 |
-| 10    | 0.927  | 0.638 | 139 / 150 |
+| 3     | 0.793  | 0.652 | 119 / 150 |
+| 5     | 0.847  | 0.668 | 127 / 150 |
+| 10    | 0.907  | 0.678 | 136 / 150 |
 
 
 *Evaluated on 150 synthetic queries generated from document chunks.*
@@ -74,7 +74,7 @@ The pipeline is split into three stages:
   Discovers APRA regulatory documents from the Handbook sitemap and fetches each page. Writes HTML under `data/raw/html/` grouped by type (e.g. `faq/2465__fit-and-proper.html`) and a thin metadata index at `data/raw/documents.jsonl`. Skips the fetch if that index already exists.
 
 2. **`index.py`**  
-  Loads the stored HTML, extracts structured sections, splits them into token-bounded chunks at `data/processed/chunks.jsonl`, then embeds and stores them in Chroma (`data/chroma`) and BM25 (`data/bm25`).
+  Loads the stored HTML, splits it with LangChain’s `HTMLSemanticPreservingSplitter` into `data/processed/chunks.jsonl`, then embeds and stores them in Chroma (`data/chroma`) and BM25 (`data/bm25`).
 
 3. **`generate.py`** 
   Runs an interactive query loop. For each input, it embeds the query, retrieves relevant chunks via `retrieve.py`, constructs a context block, and generates an answer grounded in the retrieved text.

@@ -3,20 +3,21 @@ import logging
 from pathlib import Path
 
 import bm25s
-import pysbd
-import tiktoken
 from bm25s import BM25
 from bs4 import BeautifulSoup
 from chromadb import Collection
+from langchain_text_splitters import (
+    HTMLHeaderTextSplitter,
+    RecursiveCharacterTextSplitter,
+)
 
 from config import (
     BM25_DIR,
-    CHUNK_MAX_TOKENS,
-    CHUNK_MIN_TOKENS,
+    CHUNK_MAX_SIZE,
+    CHUNK_MIN_SIZE,
     CHUNKS_PATH,
     DOCUMENTS_PATH,
     EMBEDDING_BATCH_SIZE,
-    EMBEDDING_MODEL,
     HTML_DIR,
     SPARSE_INDEX_NAME,
 )
@@ -30,6 +31,9 @@ from utils import (
 logger = logging.getLogger(__name__)
 
 DOCUMENT_FIELDS = ("url", "title", "code", "doc_type")
+
+HEADERS_TO_SPLIT_ON = [(f"h{i}", f"Header {i}") for i in range(1, 7)]
+HEADER_KEYS = [name for _, name in HEADERS_TO_SPLIT_ON]
 
 
 def load_documents(documents_path: Path = DOCUMENTS_PATH) -> list[dict]:
@@ -51,128 +55,92 @@ def load_documents(documents_path: Path = DOCUMENTS_PATH) -> list[dict]:
     return documents
 
 
-def normalise_documents(documents: list[dict]) -> list[dict]:
-    logger.info("Normalising %d documents", len(documents))
-    results = []
+INLINE_TAGS = ("a", "i", "em", "b", "strong", "span", "u", "sup", "sub")
 
-    for document in documents:
-        soup = BeautifulSoup(document["text"], "lxml")
 
-        # fragments are how APRA document web pages are structured
-        fragments = soup.find_all(class_="fragment")
+def extract_content(html: str) -> str:
+    soup = BeautifulSoup(html, "lxml")
+    root = soup.find(class_="fragments") or soup
 
-        current_section = None
-        section_text = []
-        metadata = {field: document.get(field) for field in DOCUMENT_FIELDS}
+    # drop footnotes
+    for tag in root.find_all(class_=["footnote", "footnote-reference"]):
+        tag.decompose()
 
-        for fragment in fragments:
-            h1 = fragment.find("h1")
-            if h1:
-                h1.extract()
+    # LangChain HTML splitters treat inline tags as separate elements and
+    # pull their text out of sentence order; unwrap so text stays in place.
+    for tag in root.find_all(INLINE_TAGS):
+        tag.unwrap()
 
-            header = fragment.find("h2")
+    return str(root)
 
-            if header:
-                if section_text:
-                    results.append(
-                        {
-                            **metadata,
-                            "section": current_section,
-                            "text": " ".join(section_text),
-                        }
-                    )
 
-                current_section = header.get_text(strip=True)
-                header.extract()
-                section_text = []
+def section_from_metadata(metadata: dict) -> str | None:
+    for key in reversed(HEADER_KEYS):
+        if metadata.get(key):
+            return metadata[key]
+    return None
 
-            text = fragment.get_text(" ", strip=True)
 
-            if text:
-                section_text.append(text)
+def is_header_only_split(text: str, metadata: dict) -> bool:
+    return text in {metadata[key] for key in HEADER_KEYS if metadata.get(key)}
 
-        if section_text:
-            results.append(
-                {
-                    **metadata,
-                    "section": current_section,
-                    "text": " ".join(section_text),
-                }
-            )
 
+def chunk_documents(documents: list[dict]) -> list[dict]:
     logger.info(
-        "Normalised %d documents into %d sections", len(documents), len(results)
-    )
-    return results
-
-
-def chunk_sentences(
-    sentences: list[str], encoding: tiktoken.Encoding, max_tokens: int
-) -> list[str]:
-    chunks = []
-    current = []
-    current_tokens = 0
-
-    for sentence in sentences:
-        tokens = len(encoding.encode(sentence))
-
-        if current_tokens + tokens <= max_tokens:
-            current.append(sentence)
-            current_tokens += tokens
-        else:
-            if current:
-                chunks.append(" ".join(current))
-
-            current = [sentence]
-            current_tokens = tokens
-
-    if current:
-        chunks.append(" ".join(current))
-
-    return chunks
-
-
-def chunk_documents(
-    documents: list[dict],
-    max_tokens: int = CHUNK_MAX_TOKENS,
-    min_tokens: int = CHUNK_MIN_TOKENS,
-) -> list[dict]:
-    logger.info(
-        "Chunking %d sections (max_tokens=%d, min_tokens=%d)",
+        "Chunking %d documents (min=%d, max=%d)",
         len(documents),
-        max_tokens,
-        min_tokens,
+        CHUNK_MIN_SIZE,
+        CHUNK_MAX_SIZE,
     )
 
-    segmenter = pysbd.Segmenter(clean=True)
-    encoding = tiktoken.encoding_for_model(EMBEDDING_MODEL)
+    header_splitter = HTMLHeaderTextSplitter(headers_to_split_on=HEADERS_TO_SPLIT_ON)
+    size_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=CHUNK_MAX_SIZE,
+        chunk_overlap=0,
+        separators=["\n\n", "\n", ". ", " ", ""],
+    )
 
     chunks = []
     total = len(documents)
 
     for i, document in enumerate(documents):
-        sentences = segmenter.segment(document["text"])
-        chunk_texts = chunk_sentences(sentences, encoding, max_tokens)
+        splits = header_splitter.split_text(extract_content(document["text"]))
+        metadata = {field: document.get(field) for field in DOCUMENT_FIELDS}
 
-        for j, text in enumerate(chunk_texts):
-            token_count = len(encoding.encode(text))
-            if token_count < min_tokens:
+        for j, split in enumerate(splits):
+            text = split.page_content.strip()
+            if (
+                not text
+                or is_header_only_split(text, split.metadata)
+                or len(text) < CHUNK_MIN_SIZE
+            ):
                 continue
 
-            key = f"{document['url']}{i}{j}"
-            chunk_id = hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
-
-            chunks.append(
-                {
-                    "id": chunk_id,
-                    **document,
-                    "text": text,
-                }
+            section = section_from_metadata(split.metadata)
+            parts = (
+                size_splitter.split_text(text) if len(text) > CHUNK_MAX_SIZE else [text]
             )
 
+            for k, part in enumerate(parts):
+                part = part.strip()
+                if len(part) < CHUNK_MIN_SIZE:
+                    continue
+
+                key = f"{document['url']}{i}{j}{k}"
+                chunk_id = hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
+
+                chunks.append(
+                    {
+                        "id": chunk_id,
+                        **metadata,
+                        "section": section,
+                        "text": part,
+                    }
+                )
+
         done = i + 1
-        if done % 250 == 0 or done == total:
-            logger.info("Chunked %d/%d sections (%d chunks)", done, total, len(chunks))
+        if done % 50 == 0 or done == total:
+            logger.info("Chunked %d/%d documents (%d chunks)", done, total, len(chunks))
 
     return chunks
 
@@ -242,8 +210,7 @@ def main() -> None:
         )
 
     documents = load_documents()
-    sections = normalise_documents(documents)
-    chunks = chunk_documents(sections)
+    chunks = chunk_documents(documents)
     save_jsonl(chunks, CHUNKS_PATH)
 
     collection = rebuild_chroma_collection()
