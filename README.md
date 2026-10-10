@@ -71,10 +71,10 @@ OPENAI_API_KEY=your_api_key_here
 The pipeline is split into three stages:
 
 1. **`ingest.py`**
-  Discovers APRA regulatory documents from the Handbook sitemap, fetches each page, extracts structured section text from HTML, and splits documents into token-bounded chunks, writing results to `data/raw/documents.jsonl` and `data/processed/chunks.jsonl`.
+  Discovers APRA regulatory documents from the Handbook sitemap and fetches each page. Writes HTML under `data/raw/html/` grouped by type (e.g. `faq/2465__fit-and-proper.html`) and a thin metadata index at `data/raw/documents.jsonl`. Skips the fetch if that index already exists.
 
 2. **`index.py`**  
-  Generates embeddings for each chunk and stores them with associated metadata in a persistent Chroma collection at `data/chroma`.
+  Loads the stored HTML, extracts structured sections, splits them into token-bounded chunks at `data/processed/chunks.jsonl`, then embeds and stores them in Chroma (`data/chroma`) and BM25 (`data/bm25`).
 
 3. **`generate.py`** 
   Runs an interactive query loop. For each input, it embeds the query, retrieves relevant chunks via `retrieve.py`, constructs a context block, and generates an answer grounded in the retrieved text.

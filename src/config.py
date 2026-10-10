@@ -27,6 +27,7 @@ BM25_DIR = DATA_DIR / "bm25"
 EVAL_DIR = DATA_DIR / "eval"
 
 SITEMAP_URL = "https://handbook.apra.gov.au/sitemap.xml"
+HTML_DIR = RAW_DIR / "html"
 DOCUMENTS_PATH = RAW_DIR / "documents.jsonl"
 CHUNKS_PATH = PROCESSED_DIR / "chunks.jsonl"
 QUERIES_PATH = EVAL_DIR / "queries.jsonl"
@@ -35,11 +36,9 @@ QUERIES_PATH = EVAL_DIR / "queries.jsonl"
 GENERATION_MODEL = "gpt-5.4-mini"
 EMBEDDING_MODEL = "text-embedding-3-small"
 
-# ingestion
+# indexing
 CHUNK_MAX_TOKENS = 512
 CHUNK_MIN_TOKENS = 32
-
-# indexing
 DENSE_INDEX_NAME = "dense_index"
 SPARSE_INDEX_NAME = "sparse_index"
 EMBEDDING_BATCH_SIZE = 256

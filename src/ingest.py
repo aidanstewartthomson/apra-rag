@@ -1,22 +1,13 @@
-import hashlib
 import logging
 import re
+from pathlib import Path
 from urllib.parse import urlparse
 from xml.etree import ElementTree
 
-import pysbd
 import requests
-import tiktoken
 from bs4 import BeautifulSoup
-from config import (
-    CHUNK_MAX_TOKENS,
-    CHUNK_MIN_TOKENS,
-    CHUNKS_PATH,
-    DOCUMENTS_PATH,
-    EMBEDDING_MODEL,
-    SITEMAP_URL,
-)
-from utils import configure_logging, load_jsonl, save_jsonl
+from config import DOCUMENTS_PATH, HTML_DIR, SITEMAP_URL
+from utils import configure_logging, save_jsonl
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +48,18 @@ def load_sitemap(sitemap_url: str = SITEMAP_URL) -> list[dict]:
     return entries
 
 
+def html_path_for_url(url: str, html_dir: Path = HTML_DIR) -> Path:
+    parts = urlparse(url).path.strip("/").split("/")
+    if not parts or not parts[0]:
+        raise ValueError(f"URL has no path: {url}")
+
+    doc_type, *rest = parts
+    if not rest:
+        return html_dir / doc_type / f"{doc_type}.html"
+
+    return html_dir / doc_type / f"{'_'.join(rest)}.html"
+
+
 def extract_title(html: str) -> str | None:
     soup = BeautifulSoup(html, "lxml")
     h1 = soup.find("h1")
@@ -88,9 +91,11 @@ def fetch_documents(sitemap_url: str = SITEMAP_URL) -> list[dict]:
     total = len(rows)
 
     logger.info("Fetching %d documents", total)
+    HTML_DIR.mkdir(parents=True, exist_ok=True)
 
     for i, row in enumerate(rows, start=1):
         url = row["url"]
+        html_path = html_path_for_url(url)
 
         try:
             response = requests.get(url, timeout=30)
@@ -103,6 +108,9 @@ def fetch_documents(sitemap_url: str = SITEMAP_URL) -> list[dict]:
             logger.exception("Failed to fetch document from %s", url)
             continue
 
+        html_path.parent.mkdir(parents=True, exist_ok=True)
+        html_path.write_text(response.text, encoding="utf-8")
+
         title = extract_title(response.text)
 
         documents.append(
@@ -111,7 +119,7 @@ def fetch_documents(sitemap_url: str = SITEMAP_URL) -> list[dict]:
                 "title": title,
                 "code": extract_code(title),
                 "doc_type": row["doc_type"],
-                "text": response.text,
+                "path": str(html_path.relative_to(HTML_DIR)),
             }
         )
 
@@ -122,142 +130,16 @@ def fetch_documents(sitemap_url: str = SITEMAP_URL) -> list[dict]:
     return documents
 
 
-def normalise_documents(documents: list[dict]) -> list[dict]:
-    logger.info("Normalising %d documents", len(documents))
-    results = []
-
-    for document in documents:
-        soup = BeautifulSoup(document["text"], "lxml")
-
-        # fragments are how APRA document web pages are structured
-        fragments = soup.find_all(class_="fragment")
-
-        current_section = None
-        section_text = []
-
-        for fragment in fragments:
-            h1 = fragment.find("h1")
-            if h1:
-                h1.extract()
-
-            header = fragment.find("h2")
-
-            if header:
-                if section_text:
-                    results.append(
-                        {
-                            **document,
-                            "section": current_section,
-                            "text": " ".join(section_text),
-                        }
-                    )
-
-                current_section = header.get_text(strip=True)
-                header.extract()
-                section_text = []
-
-            text = fragment.get_text(" ", strip=True)
-
-            if text:
-                section_text.append(text)
-
-        if section_text:
-            results.append(
-                {
-                    **document,
-                    "section": current_section,
-                    "text": " ".join(section_text),
-                }
-            )
-
-    logger.info("Normalised %d documents into %d sections", len(documents), len(results))
-    return results
-
-
-def chunk_sentences(
-    sentences: list[str], encoding: tiktoken.Encoding, max_tokens: int
-) -> list[str]:
-    chunks = []
-    current = []
-    current_tokens = 0
-
-    for sentence in sentences:
-        tokens = len(encoding.encode(sentence))
-
-        if current_tokens + tokens <= max_tokens:
-            current.append(sentence)
-            current_tokens += tokens
-        else:
-            if current:
-                chunks.append(" ".join(current))
-
-            current = [sentence]
-            current_tokens = tokens
-
-    if current:
-        chunks.append(" ".join(current))
-
-    return chunks
-
-
-def chunk_documents(
-    documents: list[dict],
-    max_tokens: int = CHUNK_MAX_TOKENS,
-    min_tokens: int = CHUNK_MIN_TOKENS,
-) -> list[dict]:
-    logger.info(
-        "Chunking %d sections (max_tokens=%d, min_tokens=%d)",
-        len(documents),
-        max_tokens,
-        min_tokens,
-    )
-
-    segmenter = pysbd.Segmenter(clean=True)
-    encoding = tiktoken.encoding_for_model(EMBEDDING_MODEL)
-
-    chunks = []
-    total = len(documents)
-
-    for i, document in enumerate(documents):
-        sentences = segmenter.segment(document["text"])
-        chunk_texts = chunk_sentences(sentences, encoding, max_tokens)
-
-        for j, text in enumerate(chunk_texts):
-            token_count = len(encoding.encode(text))
-            if token_count < min_tokens:
-                continue
-
-            key = f"{document['url']}{i}{j}"
-            chunk_id = hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
-
-            chunks.append(
-                {
-                    "id": chunk_id,
-                    **document,
-                    "text": text,
-                }
-            )
-
-        done = i + 1
-        if done % 250 == 0 or done == total:
-            logger.info("Chunked %d/%d sections (%d chunks)", done, total, len(chunks))
-
-    return chunks
-
-
 def main() -> None:
     configure_logging()
     logger.info("Starting ingestion pipeline")
 
     if DOCUMENTS_PATH.exists():
-        documents = load_jsonl(DOCUMENTS_PATH)
-    else:
-        documents = fetch_documents()
-        save_jsonl(documents, DOCUMENTS_PATH)
+        logger.info("Documents already exist at %s, skipping fetch", DOCUMENTS_PATH)
+        return
 
-    documents = normalise_documents(documents)
-    chunks = chunk_documents(documents)
-    save_jsonl(chunks, CHUNKS_PATH)
+    documents = fetch_documents()
+    save_jsonl(documents, DOCUMENTS_PATH)
 
     logger.info("Ingestion pipeline complete")
 
